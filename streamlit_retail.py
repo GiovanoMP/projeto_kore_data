@@ -94,6 +94,11 @@ end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['Data
 if start_date > end_date:
     st.sidebar.error('Erro: A data final deve ser posterior à data inicial.')
 
+# Seleção de país
+st.sidebar.header('Filtro de País')
+paises = ['Global'] + list(clientes['Pais'].unique())
+pais_selecionado = st.sidebar.selectbox('Escolha um País:', paises)
+
 # Seleção de categorias de preço com descrição
 st.sidebar.header('Filtro de Categoria de Preço')
 categoria_preco = st.sidebar.radio(
@@ -106,36 +111,31 @@ st.sidebar.header('Filtro de Categoria de Produtos')
 categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
 categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
-# Seleção de país
-st.sidebar.header('Receita por País')
-paises = ['Nenhum'] + list(clientes['Pais'].unique())
-pais_receita_selecionado = st.sidebar.selectbox('Escolha um País para Ver Receita:', paises)
+# Filtrar dados por data
+itens_fatura_filtrado = itens_fatura[(itens_fatura['DataFatura'].dt.date >= start_date) & (itens_fatura['DataFatura'].dt.date <= end_date)]
+
+# Filtrar dados por país
+if pais_selecionado != 'Global':
+    itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
+    itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Pais'] == pais_selecionado]
+else:
+    itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
 
 # Filtrar dados por categoria de preço
 if categoria_preco != 'Nenhum':
-    itens_fatura_filtrado = itens_fatura.merge(produtos, on='CodigoProduto')
+    itens_fatura_filtrado = itens_fatura_filtrado.merge(produtos, on='CodigoProduto')
     if categoria_preco == 'Barato (abaixo de 5,00)':
         itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] < 5]
     elif categoria_preco == 'Moderado (5,00 a 20,00)':
         itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
     elif categoria_preco == 'Caro (acima de 20,00)':
         itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
-else:
-    itens_fatura_filtrado = itens_fatura.copy()
 
 # Filtrar dados por categoria de produto
 if categoria_produto_selecionada != 'Nenhum':
     if 'Categoria' not in itens_fatura_filtrado.columns:
         itens_fatura_filtrado = itens_fatura_filtrado.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
     itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Categoria'] == categoria_produto_selecionada]
-
-# Filtrar dados por país
-if pais_receita_selecionado != 'Nenhum':
-    receita_pais_filtrada = itens_fatura_filtrado.merge(clientes, on='IDCliente')
-    receita_pais_filtrada = receita_pais_filtrada[receita_pais_filtrada['Pais'] == pais_receita_selecionado]
-    receita_total_pais = calcular_receita_total(receita_pais_filtrada)
-else:
-    receita_total_pais = None
 
 # Seção de Indicadores de Vendas
 st.header('Indicadores de Vendas')
@@ -146,11 +146,6 @@ st.line_chart(calcular_receita_diaria(itens_fatura_filtrado, start_date, end_dat
 
 st.subheader('Receita Mensal')
 st.line_chart(calcular_receita_mensal(itens_fatura_filtrado))
-
-# Mostrar receita por país selecionado
-if pais_receita_selecionado != 'Nenhum' and receita_total_pais is not None:
-    st.subheader(f"Receita Total em {pais_receita_selecionado}")
-    st.write(f"${receita_total_pais:,.2f}")
 
 # Seção de Indicadores de Clientes
 st.header('Indicadores de Clientes')
@@ -190,4 +185,3 @@ st.line_chart(calcular_tendencia_vendas(itens_fatura_filtrado))
 
 # Rodapé
 st.write('Relatório gerado por Streamlit')
-
