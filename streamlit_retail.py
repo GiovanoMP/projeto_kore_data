@@ -107,9 +107,9 @@ categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
 categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
 # Seleção de país
-st.sidebar.header('Filtro de País')
-paises = ['Global'] + list(clientes['Pais'].unique())
-pais_selecionado = st.sidebar.selectbox('Escolha um País:', paises)
+st.sidebar.header('Receita por País')
+paises = ['Nenhum'] + list(clientes['Pais'].unique())
+pais_receita_selecionado = st.sidebar.selectbox('Escolha um País para Ver Receita:', paises)
 
 # Filtrar dados por categoria de preço
 if categoria_preco != 'Nenhum':
@@ -130,11 +130,12 @@ if categoria_produto_selecionada != 'Nenhum':
     itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Categoria'] == categoria_produto_selecionada]
 
 # Filtrar dados por país
-if pais_selecionado != 'Global':
-    itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
-    itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Pais'] == pais_selecionado]
+if pais_receita_selecionado != 'Nenhum':
+    receita_pais_filtrada = itens_fatura_filtrado.merge(clientes, on='IDCliente')
+    receita_pais_filtrada = receita_pais_filtrada[receita_pais_filtrada['Pais'] == pais_receita_selecionado]
+    receita_total_pais = calcular_receita_total(receita_pais_filtrada)
 else:
-    itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
+    receita_total_pais = None
 
 # Seção de Indicadores de Vendas
 st.header('Indicadores de Vendas')
@@ -146,12 +147,10 @@ st.line_chart(calcular_receita_diaria(itens_fatura_filtrado, start_date, end_dat
 st.subheader('Receita Mensal')
 st.line_chart(calcular_receita_mensal(itens_fatura_filtrado))
 
-st.subheader('Receita por País')
-receita_por_pais = calcular_receita_por_pais(itens_fatura_filtrado, clientes)
-if not receita_por_pais.empty:
-    st.bar_chart(receita_por_pais)
-else:
-    st.write("Nenhum dado disponível para Receita por País.")
+# Mostrar receita por país selecionado
+if pais_receita_selecionado != 'Nenhum' and receita_total_pais is not None:
+    st.subheader(f"Receita Total em {pais_receita_selecionado}")
+    st.write(f"${receita_total_pais:,.2f}")
 
 # Seção de Indicadores de Clientes
 st.header('Indicadores de Clientes')
@@ -191,3 +190,4 @@ st.line_chart(calcular_tendencia_vendas(itens_fatura_filtrado))
 
 # Rodapé
 st.write('Relatório gerado por Streamlit')
+
