@@ -17,6 +17,10 @@ clientes.rename(columns=lambda x: x.strip(), inplace=True)
 itens_fatura.rename(columns=lambda x: x.strip(), inplace=True)
 produtos.rename(columns=lambda x: x.strip(), inplace=True)
 
+# Verificar se a coluna 'Categoria' existe em itens_fatura e adicionar se necessário
+if 'Categoria' not in itens_fatura.columns:
+    itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
+
 # Funções auxiliares para calcular os indicadores
 def calcular_receita_total(itens_fatura):
     return itens_fatura['ValorTotal'].sum()
@@ -43,6 +47,7 @@ def calcular_clientes_unicos(itens_fatura):
 
 def calcular_top_clientes(itens_fatura, n=100):
     top_clientes = itens_fatura.groupby('IDCliente')['ValorTotal'].sum().nlargest(n).reset_index()
+    top_clientes['IDCliente'] = top_clientes['IDCliente'].astype(str)  # Ajustar a formatação
     return top_clientes
 
 def calcular_frequencia_compras(itens_fatura):
@@ -89,9 +94,17 @@ end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['Data
 if start_date > end_date:
     st.sidebar.error('Erro: A data final deve ser posterior à data inicial.')
 
-# Seleção de categorias de preço
+# Seleção de categorias de preço com descrição
 st.sidebar.header('Filtro de Categoria de Preço')
-categoria_preco = st.sidebar.radio('Escolha uma Categoria de Preço:', ['Nenhum', 'Barato', 'Moderado', 'Caro'])
+categoria_preco = st.sidebar.radio(
+    'Escolha uma Categoria de Preço:',
+    ['Nenhum', 'Barato (abaixo de 5,00)', 'Moderado (5,00 a 20,00)', 'Caro (acima de 20,00)']
+)
+
+# Seleção de categoria de produtos
+st.sidebar.header('Filtro de Categoria de Produtos')
+categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
+categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
 # Seleção de país
 st.sidebar.header('Filtro de País')
@@ -101,9 +114,20 @@ pais_selecionado = st.sidebar.selectbox('Escolha um País:', paises)
 # Filtrar dados por categoria de preço
 if categoria_preco != 'Nenhum':
     itens_fatura_filtrado = itens_fatura.merge(produtos, on='CodigoProduto')
-    itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['CategoriaPreco'] == categoria_preco]
+    if categoria_preco == 'Barato (abaixo de 5,00)':
+        itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] < 5]
+    elif categoria_preco == 'Moderado (5,00 a 20,00)':
+        itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
+    elif categoria_preco == 'Caro (acima de 20,00)':
+        itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
 else:
     itens_fatura_filtrado = itens_fatura.copy()
+
+# Filtrar dados por categoria de produto
+if categoria_produto_selecionada != 'Nenhum':
+    if 'Categoria' not in itens_fatura_filtrado.columns:
+        itens_fatura_filtrado = itens_fatura_filtrado.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
+    itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Categoria'] == categoria_produto_selecionada]
 
 # Filtrar dados por país
 if pais_selecionado != 'Global':
