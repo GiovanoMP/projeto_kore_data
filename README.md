@@ -54,6 +54,4 @@ Este projeto resultou em uma infraestrutura robusta para análise de vendas glob
 2. Instale as dependências
 3. Execute o script em Streamlit: `streamlit run app.py`
 
-## Contato
 
-Para mais informações, entre em contato: [atendimento.carreiras@infnet.edu.br](mailto:atendimento.carreiras@infnet.edu.br)
