@@ -44,9 +44,21 @@ Os dados foram organizados em três DataFrames principais e salvos em arquivos C
 - **ODBC e Power BI**: Transferência de dados e criação de dashboard.
 - **Streamlit**: Dashboard interativo para visualização de insights.
 
+## Relatórios em Streamlit
+
+- [Relatório de Vendas](https://projetokoredata-d8cemzcrs5mn54ubiytqrn.streamlit.app/)
+- [Relatório Técnico](https://projetokoredata-3esbpqmvtvbwxhqyevlcrv.streamlit.app/)
+
 ## Conclusão
 
 Este projeto resultou em uma infraestrutura robusta para análise de vendas globais, proporcionando uma base sólida para futuras análises e tomada de decisões estratégicas.
+
+## Como Executar
+
+1. Clone o repositório
+2. Instale as dependências
+3. Execute o script em Streamlit: `streamlit run app.py`
+
 
 ## Como Executar
 
