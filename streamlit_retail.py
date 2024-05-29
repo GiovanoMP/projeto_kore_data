@@ -191,7 +191,7 @@ st.header('2. Análise da Receita')
 
 st.subheader('2.1. Distribuição da Receita por País')
 st.write("""
-O país que gerou a maior receita foi o **Reino Unido**, com uma receita total de £7,250,857.27. Isso indica que a maior parte das vendas ocorre no mercado local, sugerindo uma forte base de clientes domésticos. Países como Alemanha, França e Países Baixos também contribuíram significativamente para a receita, representando mercados importantes para a empresa.
+O país que gerou a maior receita foi o **Reino Unido**. Isso indica que a maior parte das vendas ocorre no mercado local, sugerindo uma forte base de clientes domésticos. Países como Alemanha, França e Países Baixos também contribuíram significativamente para a receita, representando mercados importantes para a empresa.
 """)
 
 st.subheader('2.2. Receita Diária')
