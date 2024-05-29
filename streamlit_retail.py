@@ -184,7 +184,7 @@ st.subheader('Tendência de Vendas ao Longo do Tempo')
 st.line_chart(calcular_tendencia_vendas(itens_fatura_filtrado))
 
 # Título do app
-st.title('Relatório Final | Insights da Análise de Dados de Vendas')
+st.title('Insights da Análise de Dados de Vendas')
 
 # Análise da Receita
 st.header('2. Análise da Receita')
