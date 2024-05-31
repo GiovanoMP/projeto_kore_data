@@ -2,34 +2,50 @@ import streamlit as st
 import pandas as pd
 from datetime import timedelta
 
-# Carregar os dataframes
-clientes = pd.read_csv('clientes.csv')
-itens_fatura = pd.read_csv('itens_fatura.csv')
-produtos = pd.read_csv('produtos.csv')
+# Funções auxiliares para validação e tratamento de dados
+def ler_csv_com_tratamento(nome_arquivo):
+    try:
+        df = pd.read_csv(nome_arquivo)
+        df.rename(columns=lambda x: x.strip(), inplace=True)  # Remover espaços em branco nos nomes das colunas
+        return df
+    except FileNotFoundError:
+        st.error(f"O arquivo '{nome_arquivo}' não foi encontrado.")
+        return None
+    except pd.errors.EmptyDataError:
+        st.error(f"O arquivo '{nome_arquivo}' está vazio.")
+        return None
+    except Exception as e:
+        st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
+        return None
 
+# Carregar os DataFrames
+clientes = ler_csv_com_tratamento('clientes.csv')
+itens_fatura = ler_csv_com_tratamento('itens_fatura.csv')
+produtos = ler_csv_com_tratamento('produtos.csv')
+
+# Verificar se os DataFrames foram carregados corretamente
+if any(df is None for df in [clientes, itens_fatura, produtos]):
+    st.stop()  # Interromper a execução do aplicativo
 
 # Converter a coluna 'DataFatura' para datetime
 itens_fatura['DataFatura'] = pd.to_datetime(itens_fatura['DataFatura'], errors='coerce')
 
-# Filtrar registros com datas válidas
-itens_fatura = itens_fatura.dropna(subset=['DataFatura'])
+# Remover registros com datas inválidas
+itens_fatura.dropna(subset=['DataFatura'], inplace=True)
 
-# Garantir que os nomes das colunas estejam corretos
-clientes.rename(columns=lambda x: x.strip(), inplace=True)
-itens_fatura.rename(columns=lambda x: x.strip(), inplace=True)
-produtos.rename(columns=lambda x: x.strip(), inplace=True)
-
-# Verificar se a coluna 'Categoria' existe em itens_fatura e adicionar se necessário
+# Garantir que a coluna 'Categoria' exista em itens_fatura
 if 'Categoria' not in itens_fatura.columns:
     itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
 
-# Funções auxiliares para calcular os indicadores
+# Funções para calcular indicadores de vendas
 def calcular_receita_total(itens_fatura):
     return itens_fatura['ValorTotal'].sum()
 
 def calcular_receita_diaria(itens_fatura, start_date, end_date):
-    filtro = (itens_fatura['DataFatura'].dt.date >= start_date) & (itens_fatura['DataFatura'].dt.date <= end_date)
-    receita_diaria = itens_fatura[filtro].groupby(itens_fatura['DataFatura'].dt.date)['ValorTotal'].sum()
+    filtered_data = itens_fatura[
+        (itens_fatura['DataFatura'].dt.date >= start_date) & (itens_fatura['DataFatura'].dt.date <= end_date)
+    ]
+    receita_diaria = filtered_data.resample('D', on='DataFatura')['ValorTotal'].sum()
     return receita_diaria
 
 def calcular_receita_mensal(itens_fatura):
@@ -44,6 +60,7 @@ def calcular_receita_por_pais(itens_fatura, clientes):
     else:
         return pd.Series()
 
+# Funções para calcular indicadores de clientes
 def calcular_clientes_unicos(itens_fatura):
     return itens_fatura['IDCliente'].nunique()
 
@@ -56,6 +73,7 @@ def calcular_frequencia_compras(itens_fatura):
     frequencia = itens_fatura.groupby('IDCliente').size()
     return frequencia
 
+# Funções para calcular indicadores de produtos
 def calcular_produtos_mais_vendidos(itens_fatura, produtos):
     vendidos = itens_fatura.groupby('CodigoProduto')['Quantidade'].sum().nlargest(10).reset_index()
     return vendidos.merge(produtos, on='CodigoProduto')
@@ -68,6 +86,7 @@ def calcular_produtos_mais_devolvidos(itens_fatura, produtos):
     devolvidos = itens_fatura[itens_fatura['Devolucao'] == True].groupby('CodigoProduto')['Quantidade'].sum().nlargest(10).reset_index()
     return devolvidos.merge(produtos, on='CodigoProduto')
 
+# Funções para calcular indicadores de transações
 def calcular_numero_transacoes(itens_fatura):
     return itens_fatura['NumeroFatura'].nunique()
 
@@ -77,6 +96,7 @@ def calcular_transacoes_com_devolucoes(itens_fatura):
 def calcular_ticket_medio(itens_fatura):
     return itens_fatura['ValorTotal'].mean()
 
+# Funções para análise temporal
 def calcular_variacao_sazonal(itens_fatura):
     variacao = itens_fatura.groupby(itens_fatura['DataFatura'].dt.month)['ValorTotal'].sum()
     return variacao
@@ -136,7 +156,7 @@ st.sidebar.header('Filtro de Categoria de Produtos')
 categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
 categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
-# Filtrar transações de acordo com a seleção de churn
+# Função para filtrar transações de acordo com a seleção de churn
 def filtrar_transacoes_por_churn(opcao):
     if opcao == 'Todos os clientes':
         return itens_fatura
@@ -157,10 +177,6 @@ itens_fatura_filtrado = itens_fatura[(itens_fatura['DataFatura'].dt.date >= star
 if pais_selecionado != 'Global':
     itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
     itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Pais'] == pais_selecionado]
-else:
-    itens_fatura_filtrado = itens_fatura_filtrado
-else:
-    itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
 
 # Filtrar dados por categoria de preço
 if categoria_preco != 'Nenhum':
@@ -227,5 +243,3 @@ st.line_chart(calcular_variacao_sazonal(itens_fatura_filtrado_churn))
 
 st.subheader('Tendência de Vendas ao Longo do Tempo')
 st.line_chart(calcular_tendencia_vendas(itens_fatura_filtrado_churn))
-
-
