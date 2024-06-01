@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import timedelta
 
 # Carregar os dataframes
 clientes = pd.read_csv('clientes.csv')
@@ -78,8 +79,31 @@ def calcular_tendencia_vendas(itens_fatura):
     tendencia = itens_fatura.groupby(itens_fatura['DataFatura'].dt.to_period('M'))['ValorTotal'].sum()
     return tendencia
 
+# Função para filtrar clientes que não compraram em um intervalo de dias
+def filtrar_clientes_por_intervalo(df, dias_inicio, dias_fim, ultima_data):
+    data_inicio = ultima_data - timedelta(days=dias_inicio)
+    data_fim = ultima_data - timedelta(days=dias_fim)
+    clientes_inativos = df.groupby('IDCliente').filter(
+        lambda x: x['DataFatura'].max() <= data_inicio and x['DataFatura'].max() > data_fim
+    )
+    return clientes_inativos['IDCliente'].unique()
+
+# Definir a última data do dataset para a filtragem
+ultima_data = itens_fatura['DataFatura'].max()
+
+# Aplicar os filtros
+clientes_30_60_dias = filtrar_clientes_por_intervalo(itens_fatura, 30, 60, ultima_data)
+clientes_61_90_dias = filtrar_clientes_por_intervalo(itens_fatura, 61, 90, ultima_data)
+clientes_91_120_dias = filtrar_clientes_por_intervalo(itens_fatura, 91, 120, ultima_data)
+clientes_121_360_dias = filtrar_clientes_por_intervalo(itens_fatura, 121, 360, ultima_data)
+
 # Título do app
 st.title('Relatório de Vendas')
+
+# Filtro de Análise de Churn
+st.sidebar.header('Análise de Churn')
+opcoes_churn = ['Todos os clientes', 'Clientes que não compram de 30 a 60 dias', 'Clientes que não compram de 61 a 90 dias', 'Clientes que não compram de 91 a 120 dias', 'Clientes que não compram de 121 a 360 dias']
+selecionar_churn = st.sidebar.selectbox('Selecione o período de churn:', opcoes_churn)
 
 # Seleção de datas para filtrar os dados
 st.sidebar.header('Filtro de Data')
@@ -112,18 +136,38 @@ if pais_selecionado != 'Global':
 else:
     itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
 
+# Filtrar transações de acordo com a seleção de churn
+def filtrar_transacoes_por_churn(opcao):
+    if opcao == 'Todos os clientes':
+        return itens_fatura_filtrado
+    elif opcao == 'Clientes que não compram de 30 a 60 dias':
+        clientes = clientes_30_60_dias
+    elif opcao == 'Clientes que não compram de 61 a 90 dias':
+        clientes = clientes_61_90_dias
+    elif opcao == 'Clientes que não compram de 91 a 120 dias':
+        clientes = clientes_91_120_dias
+    elif opcao == 'Clientes que não compram de 121 a 360 dias':
+        clientes = clientes_121_360_dias
+    return itens_fatura_filtrado[itens_fatura_filtrado['IDCliente'].isin(clientes)]
+
+# Aplicar filtro de churn
+itens_fatura_filtrado_churn = filtrar_transacoes_por_churn(selecionar_churn)
+
+# Filtrar dados por data
+itens_fatura_filtrado_churn = itens_fatura_filtrado_churn[(itens_fatura_filtrado_churn['DataFatura'].dt.date >= start_date) & (itens_fatura_filtrado_churn['DataFatura'].dt.date <= end_date)]
+
 # Seção de Indicadores de Vendas
 st.header('Indicadores de Vendas')
-st.write(f"Receita Total: ${calcular_receita_total(itens_fatura_filtrado):,.2f}")
+st.write(f"Receita Total: ${calcular_receita_total(itens_fatura_filtrado_churn):,.2f}")
 
 st.subheader('Receita Diária')
-st.line_chart(calcular_receita_diaria(itens_fatura_filtrado, start_date, end_date))
+st.line_chart(calcular_receita_diaria(itens_fatura_filtrado_churn, start_date, end_date))
 
 st.subheader('Receita Mensal')
-st.line_chart(calcular_receita_mensal(itens_fatura_filtrado))
+st.line_chart(calcular_receita_mensal(itens_fatura_filtrado_churn))
 
 st.subheader('Receita por País')
-receita_por_pais = calcular_receita_por_pais(itens_fatura_filtrado, clientes)
+receita_por_pais = calcular_receita_por_pais(itens_fatura_filtrado_churn, clientes)
 if not receita_por_pais.empty:
     st.bar_chart(receita_por_pais)
 else:
@@ -131,39 +175,39 @@ else:
 
 # Seção de Indicadores de Clientes
 st.header('Indicadores de Clientes')
-st.write(f"Clientes Únicos: {calcular_clientes_unicos(itens_fatura_filtrado)}")
+st.write(f"Clientes Únicos: {calcular_clientes_unicos(itens_fatura_filtrado_churn)}")
 
 st.subheader('Top Clientes')
-top_clientes = calcular_top_clientes(itens_fatura_filtrado)
+top_clientes = calcular_top_clientes(itens_fatura_filtrado_churn)
 st.dataframe(top_clientes)
 
 st.subheader('Frequência de Compras por Cliente')
-st.bar_chart(calcular_frequencia_compras(itens_fatura_filtrado))
+st.bar_chart(calcular_frequencia_compras(itens_fatura_filtrado_churn))
 
 # Seção de Indicadores de Produtos
 st.header('Indicadores de Produtos')
 st.subheader('Produtos Mais Vendidos')
-st.dataframe(calcular_produtos_mais_vendidos(itens_fatura_filtrado, produtos))
+st.dataframe(calcular_produtos_mais_vendidos(itens_fatura_filtrado_churn, produtos))
 
 st.subheader('Produtos com Melhor Desempenho por Categoria')
-st.dataframe(calcular_produtos_melhor_desempenho(itens_fatura_filtrado, produtos))
+st.dataframe(calcular_produtos_melhor_desempenho(itens_fatura_filtrado_churn, produtos))
 
 st.subheader('Produtos Mais Devolvidos')
-st.dataframe(calcular_produtos_mais_devolvidos(itens_fatura_filtrado, produtos))
+st.dataframe(calcular_produtos_mais_devolvidos(itens_fatura_filtrado_churn, produtos))
 
 # Seção de Indicadores de Transações
 st.header('Indicadores de Transações')
-st.write(f"Número de Transações: {calcular_numero_transacoes(itens_fatura_filtrado)}")
-st.write(f"Transações com Devoluções: {calcular_transacoes_com_devolucoes(itens_fatura_filtrado)}")
-st.write(f"Ticket Médio: ${calcular_ticket_medio(itens_fatura_filtrado):,.2f}")
+st.write(f"Número de Transações: {calcular_numero_transacoes(itens_fatura_filtrado_churn)}")
+st.write(f"Transações com Devoluções: {calcular_transacoes_com_devolucoes(itens_fatura_filtrado_churn)}")
+st.write(f"Ticket Médio: ${calcular_ticket_medio(itens_fatura_filtrado_churn):,.2f}")
 
 # Seção de Análise Temporal
 st.header('Análise Temporal')
 st.subheader('Variação Sazonal nas Vendas')
-st.line_chart(calcular_variacao_sazonal(itens_fatura_filtrado))
+st.line_chart(calcular_variacao_sazonal(itens_fatura_filtrado_churn))
 
 st.subheader('Tendência de Vendas ao Longo do Tempo')
-st.line_chart(calcular_tendencia_vendas(itens_fatura_filtrado))
+st.line_chart(calcular_tendencia_vendas(itens_fatura_filtrado_churn))
 
 # Rodapé
 st.write('Relatório gerado por Streamlit')
