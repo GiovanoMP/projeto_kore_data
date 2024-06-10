@@ -96,7 +96,7 @@ def calcular_tendencia_vendas(itens_fatura):
 def calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia):
     ultima_compra = itens_fatura.groupby('IDCliente')['DataFatura'].max()
     dias_desde_ultima_compra = (data_referencia - ultima_compra).dt.days
-    return dias_desde_ultima_compra
+    return dias_desde_ultima_compra.reset_index()
 
 # Título do app
 st.title('Relatório de Vendas e Segmentação de Clientes')
@@ -289,26 +289,27 @@ elif opcao == 'Histórico de Vendas e Churn':
     tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
 
     # Categorizar clientes por tempo desde a última compra
-    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra >= 30) & (tempo_desde_ultima_compra <= 59)]
-    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra >= 60) & (tempo_desde_ultima_compra <= 89)]
-    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra >= 90) & (tempo_desde_ultima_compra <= 119)]
-    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra >= 120) & (tempo_desde_ultima_compra <= 180)]
-    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra > 180]
+    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 30) & (tempo_desde_ultima_compra['DataFatura'] <= 59)]
+    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 60) & (tempo_desde_ultima_compra['DataFatura'] <= 89)]
+    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 90) & (tempo_desde_ultima_compra['DataFatura'] <= 119)]
+    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 120) & (tempo_desde_ultima_compra['DataFatura'] <= 180)]
+    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra['DataFatura'] > 180]
 
     # Botões para filtrar por tempo desde a última compra
-    if st.button('30 a 59 dias'):
+    st.sidebar.header('Filtro de Churn')
+    if st.sidebar.button('30 a 59 dias'):
         st.subheader('Clientes que não compram há 30 a 59 dias:')
         st.write(churn_30_59)
-    if st.button('60 a 89 dias'):
+    if st.sidebar.button('60 a 89 dias'):
         st.subheader('Clientes que não compram há 60 a 89 dias:')
         st.write(churn_60_89)
-    if st.button('90 a 119 dias'):
+    if st.sidebar.button('90 a 119 dias'):
         st.subheader('Clientes que não compram há 90 a 119 dias:')
         st.write(churn_90_119)
-    if st.button('120 a 180 dias (Churn)'):
+    if st.sidebar.button('120 a 180 dias (Churn)'):
         st.subheader('Clientes que não compram há 120 a 180 dias (Churn):')
         st.write(churn_120_180)
-    if st.button('Mais de 181 dias (Churn)'):
+    if st.sidebar.button('Mais de 181 dias (Churn)'):
         st.subheader('Clientes que não compram há mais de 181 dias (Churn):')
         st.write(churn_181_plus)
 
@@ -401,5 +402,38 @@ elif opcao == 'Análises e Insights':
     st.write("""
     A análise dos dados de vendas revelou insights valiosos sobre o comportamento dos clientes e a performance dos produtos. Implementar as estratégias recomendadas pode ajudar a aumentar a receita, melhorar a satisfação do cliente e fortalecer a fidelidade dos clientes. Este relatório fornece uma base sólida para decisões estratégicas que podem impulsionar o crescimento e a rentabilidade da empresa.
     """)
+
+# Seção de Análise de Churn
+elif opcao == 'Análise de Churn':
+    st.header('Análise de Churn')
+
+    # Calcular o tempo desde a última compra
+    data_referencia = pd.to_datetime(itens_fatura['DataFatura'].max())
+    tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
+
+    # Categorizar clientes por tempo desde a última compra
+    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 30) & (tempo_desde_ultima_compra['DataFatura'] <= 59)]
+    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 60) & (tempo_desde_ultima_compra['DataFatura'] <= 89)]
+    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 90) & (tempo_desde_ultima_compra['DataFatura'] <= 119)]
+    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 120) & (tempo_desde_ultima_compra['DataFatura'] <= 180)]
+    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra['DataFatura'] > 180]
+
+    # Botões para filtrar por tempo desde a última compra
+    st.sidebar.header('Filtro de Churn')
+    if st.sidebar.button('30 a 59 dias'):
+        st.subheader('Clientes que não compram há 30 a 59 dias:')
+        st.write(churn_30_59)
+    if st.sidebar.button('60 a 89 dias'):
+        st.subheader('Clientes que não compram há 60 a 89 dias:')
+        st.write(churn_60_89)
+    if st.sidebar.button('90 a 119 dias'):
+        st.subheader('Clientes que não compram há 90 a 119 dias:')
+        st.write(churn_90_119)
+    if st.sidebar.button('120 a 180 dias (Churn)'):
+        st.subheader('Clientes que não compram há 120 a 180 dias (Churn):')
+        st.write(churn_120_180)
+    if st.sidebar.button('Mais de 181 dias (Churn)'):
+        st.subheader('Clientes que não compram há mais de 181 dias (Churn):')
+        st.write(churn_181_plus)
 
 
