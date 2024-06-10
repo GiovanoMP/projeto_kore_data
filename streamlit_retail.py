@@ -205,6 +205,8 @@ else:
     # Mostrar produtos recomendados para um cliente
     id_cliente = st.text_input('Digite o ID do cliente:')
     if id_cliente:
+        # Substituir a vírgula por ponto para converter para float
+        id_cliente = id_cliente.replace(',', '.')
         cliente = segmentacao[segmentacao['IDCliente'] == float(id_cliente)]
         if not cliente.empty:
             produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
