@@ -103,7 +103,7 @@ st.title('Relatório de Vendas e Segmentação de Clientes')
 
 # Menu lateral
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Busca de Cliente', 'Análises e Insights'])
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Busca de Cliente', 'Análise de Churn', 'Análises e Insights'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
@@ -208,23 +208,27 @@ if opcao == 'Relatório de Vendas':
     st.subheader('Tendência de Vendas ao Longo do Tempo')
     st.line_chart(calcular_tendencia_vendas(itens_fatura_filtrado))
 
-    # Seção de Análise de Churn
+# Seção de Análise de Churn
+elif opcao == 'Análise de Churn':
     st.header('Análise de Churn')
 
     # Calcular o tempo desde a última compra
     data_referencia = pd.to_datetime(itens_fatura['DataFatura'].max())
     tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
 
+    # Fazer o join com o dataframe de clientes para obter os nomes dos clientes
+    churn_data = tempo_desde_ultima_compra.merge(clientes, on='IDCliente')
+
     # Categorizar clientes por tempo desde a última compra
-    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] >= 30) & (tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] <= 59)]
-    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] >= 60) & (tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] <= 89)]
-    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] >= 90) & (tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] <= 119)]
-    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] >= 120) & (tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] <= 180)]
-    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] > 180]
+    churn_30_59 = churn_data[(churn_data['DiasDesdeUltimaCompra'] >= 30) & (churn_data['DiasDesdeUltimaCompra'] <= 59)]
+    churn_60_89 = churn_data[(churn_data['DiasDesdeUltimaCompra'] >= 60) & (churn_data['DiasDesdeUltimaCompra'] <= 89)]
+    churn_90_119 = churn_data[(churn_data['DiasDesdeUltimaCompra'] >= 90) & (churn_data['DiasDesdeUltimaCompra'] <= 119)]
+    churn_120_180 = churn_data[(churn_data['DiasDesdeUltimaCompra'] >= 120) & (churn_data['DiasDesdeUltimaCompra'] <= 180)]
+    churn_181_plus = churn_data[churn_data['DiasDesdeUltimaCompra'] > 180]
 
     # Seleção de categoria de churn
     st.sidebar.header('Filtro de Churn')
-    opcao_churn = st.sidebar.selectbox('Selecione uma opção:', [
+    opcao_churn = st.sidebar.radio('Selecione uma opção:', [
         '30 a 59 dias', '60 a 89 dias', '90 a 119 dias', '120 a 180 dias (Churn)', 'Mais de 181 dias (Churn)'
     ])
 
@@ -410,4 +414,3 @@ st.sidebar.write("2. **Análise de Churn**: Use o filtro de churn para seleciona
 st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para visualizar clientes e seus produtos recomendados.")
 st.sidebar.write("4. **Busca de Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
 st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
-
