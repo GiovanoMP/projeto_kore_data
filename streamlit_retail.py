@@ -216,21 +216,26 @@ else:
     # Remove duplicatas no dataframe de segmentação
     segmentacao = segmentacao.drop_duplicates(subset=['IDCliente', 'segmento'])
 
-    # Mostrar informações de segmentação
-    st.write("Segmentação de clientes:", segmentacao)
+    # Criar um dicionário para armazenar os clientes e produtos por tipo
+    clientes_por_tipo = {}
+    for tipo in segmentacao['segmento'].unique():
+        clientes_por_tipo[tipo] = segmentacao[segmentacao['segmento'] == tipo]
 
-    # Mostrar produtos recomendados para um cliente
-    id_cliente = st.text_input('Digite o ID do cliente:')
-    if id_cliente:
-        # Substitui a vírgula por ponto para converter para float
-        id_cliente = id_cliente.replace(',', '.')
-        try:
-            id_cliente_float = float(id_cliente)
-            cliente = segmentacao[segmentacao['IDCliente'] == id_cliente_float]
-            if not cliente.empty:
-                produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
-                st.write(f"Produtos recomendados para o cliente {id_cliente}: {produtos_recomendados}")
-            else:
-                st.write(f"Cliente {id_cliente} não encontrado.")
-        except ValueError:
-            st.write("Por favor, insira um ID de cliente válido.")
+    # Criar botões para cada tipo de cliente
+    st.sidebar.header('Tipos de Clientes')
+    tipo_selecionado = st.sidebar.selectbox(
+        'Escolha um tipo de cliente:',
+        list(clientes_por_tipo.keys())
+    )
+
+    # Exibir informações do tipo selecionado
+    if tipo_selecionado:
+        clientes_do_tipo = clientes_por_tipo[tipo_selecionado]
+        st.write(f"Clientes do tipo {tipo_selecionado}:")
+        st.dataframe(clientes_do_tipo)
+
+        # Mostrar produtos recomendados para o tipo
+        st.write(f"Produtos recomendados para clientes do tipo {tipo_selecionado}:")
+        for index, row in clientes_do_tipo.iterrows():
+            produtos_recomendados = eval(row['ProdutosRecomendados'])
+            st.write(f"Cliente {row['IDCliente']}: {produtos_recomendados}")
