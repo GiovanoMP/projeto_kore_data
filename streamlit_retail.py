@@ -210,7 +210,7 @@ else:
     st.header('Segmentação de Clientes')
 
     # Carregar o dataframe de segmentação
-    segmentacao = pd.read_csv(url_segmentacao)
+    segmentacao = pd.read_csv(url_segmentacao, decimal=',') # Lê CSV com separador decimal
     segmentacao['IDCliente'] = segmentacao['IDCliente'].astype(float)  # Converte a coluna 'IDCliente' para float
 
     # Remove duplicatas no dataframe de segmentação
@@ -222,8 +222,10 @@ else:
     # Mostrar produtos recomendados para um cliente
     id_cliente = st.text_input('Digite o ID do cliente:')
     if id_cliente:
+        # Substitui a vírgula por ponto para converter para float
+        id_cliente = id_cliente.replace(',', '.')
         try:
-            id_cliente_float = float(id_cliente.replace(',', '.'))
+            id_cliente_float = float(id_cliente)
             cliente = segmentacao[segmentacao['IDCliente'] == id_cliente_float]
             if not cliente.empty:
                 produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
@@ -232,4 +234,3 @@ else:
                 st.write(f"Cliente {id_cliente} não encontrado.")
         except ValueError:
             st.write("Por favor, insira um ID de cliente válido.")
-
