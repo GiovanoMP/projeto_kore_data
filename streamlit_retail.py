@@ -6,7 +6,10 @@ clientes = pd.read_csv('clientes.csv')
 itens_fatura = pd.read_csv('itens_fatura.csv')
 produtos = pd.read_csv('produtos.csv')
 segmentacao = pd.read_csv('df_treinamento_reduzido.csv', decimal=',')  # Lê CSV com separador decimal
-segmentacao['IDCliente'] = segmentacao['IDCliente'].astype(float) # Converte a coluna 'IDCliente' para float
+segmentacao['IDCliente'] = segmentacao['IDCliente'].astype(float)  # Converte a coluna 'IDCliente' para float
+
+# Remove duplicatas no dataframe de segmentação
+segmentacao = segmentacao.drop_duplicates(subset=['IDCliente', 'segmento'])
 
 # Pré-processamento de dados
 itens_fatura['DataFatura'] = pd.to_datetime(itens_fatura['DataFatura'], errors='coerce')
@@ -214,3 +217,4 @@ else:
             st.write(f"Produtos recomendados para o cliente {id_cliente}: {produtos_recomendados}")
         else:
             st.write(f"Cliente {id_cliente} não encontrado.")
+
