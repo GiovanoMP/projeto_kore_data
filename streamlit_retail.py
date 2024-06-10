@@ -1,5 +1,12 @@
 import streamlit as st
 import pandas as pd
+from datetime import timedelta
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+from xgboost import XGBRegressor
+from scipy.stats import uniform, randint
+import matplotlib.pyplot as plt
 
 # URLs dos arquivos no GitHub
 base_url = 'https://raw.githubusercontent.com/GiovanoMP/projeto_kore_data/main/'
@@ -98,12 +105,92 @@ def calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia):
     ultima_compra['DiasDesdeUltimaCompra'] = (data_referencia - ultima_compra['DataFatura']).dt.days
     return ultima_compra[['IDCliente', 'DiasDesdeUltimaCompra']]
 
+# Função para prever vendas
+def previsao_vendas(meses):
+    # Pré-processamento de Dados
+    itens_fatura['DataFatura'] = itens_fatura['DataFatura'].dt.to_period('D').astype('int64').astype(int)
+
+    # Selecionar as Colunas Relevantes
+    colunas_importantes = [
+        'DataFatura', 'Quantidade', 'CategoriaPreco', 'Devolucao', 'Venda', 
+        'PrecoUnitario', 'IDCliente', 'ValorTotal', 'segmento'
+    ]
+    df_treinamento_simplificado = itens_fatura[colunas_importantes]
+
+    # Tratar a Coluna 'CategoriaPreco' (One-Hot Encoding)
+    encoder = OneHotEncoder(handle_unknown='ignore')
+    categoria_preco_encoded = encoder.fit_transform(df_treinamento_simplificado[['CategoriaPreco']]).toarray()
+    categoria_preco_encoded_df = pd.DataFrame(categoria_preco_encoded, columns=encoder.get_feature_names_out(['CategoriaPreco']))
+    df_treinamento_simplificado = pd.concat([df_treinamento_simplificado, categoria_preco_encoded_df], axis=1)
+    df_treinamento_simplificado.drop('CategoriaPreco', axis=1, inplace=True)
+
+    # Tratar valores ausentes
+    df_treinamento_simplificado.dropna(inplace=True)
+
+    # Adicionar features derivadas
+    df_treinamento_simplificado['PrecoMedio'] = df_treinamento_simplificado['PrecoUnitario'] / df_treinamento_simplificado['Quantidade']
+    df_treinamento_simplificado['NumComprasCliente'] = df_treinamento_simplificado.groupby('IDCliente')['Quantidade'].transform('sum')
+    df_treinamento_simplificado['DiasDesdeUltimaCompra'] = df_treinamento_simplificado.groupby('IDCliente')['DataFatura'].transform(lambda x: x.max() - x)
+
+    # Remover outliers
+    q1 = df_treinamento_simplificado['Quantidade'].quantile(0.25)
+    q3 = df_treinamento_simplificado['Quantidade'].quantile(0.75)
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    df_treinamento_simplificado = df_treinamento_simplificado[(df_treinamento_simplificado['Quantidade'] >= lower_bound) & (df_treinamento_simplificado['Quantidade'] <= upper_bound)]
+
+    # Separar os Dados
+    X = df_treinamento_simplificado.drop('Quantidade', axis=1)
+    y = df_treinamento_simplificado['Quantidade']
+
+    # Garantir que os nomes das colunas sejam strings
+    X.columns = X.columns.astype(str)
+
+    # Normalizar os Dados
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Função para previsão
+    def previsao_vendas(meses):
+        # Dividir em Treino e Teste
+        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+        # Definir o Modelo
+        model = XGBRegressor(objective='reg:squarederror', random_state=42)
+
+        # Definir o Grid de Hiperparâmetros
+        param_dist = {
+            'n_estimators': randint(100, 300),
+            'learning_rate': uniform(0.01, 0.2),
+            'max_depth': randint(3, 7),
+            'min_child_weight': randint(1, 6),
+            'subsample': uniform(0.6, 0.4),
+            'colsample_bytree': uniform(0.6, 0.4)
+        }
+
+        # Randomized Search com Validação Cruzada
+        random_search = RandomizedSearchCV(estimator=model, param_distributions=param_dist, n_iter=50, cv=3, n_jobs=-1, scoring='neg_mean_squared_error', random_state=42)
+        random_search.fit(X_train, y_train)
+
+        # Melhor Modelo
+        best_model = random_search.best_estimator_
+
+        # Avaliar o Melhor Modelo
+        y_pred = best_model.predict(X_test)
+
+        r2 = r2_score(y_test, y_pred)
+        rmse = mean_squared_error(y_test, y_pred, squared=False)
+        mae = mean_absolute_error(y_test, y_pred)
+        
+        return r2, rmse, mae, y_test, y_pred
+
 # Título do app
 st.title('Relatório de Vendas e Segmentação de Clientes')
 
 # Menu lateral
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Busca de Cliente', 'Análise de Churn', 'Análises e Insights'])
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análise de Churn', 'Análises e Insights', 'Previsão de Vendas'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
@@ -281,8 +368,8 @@ elif opcao == 'Segmentação de Clientes':
                         st.write(f"  - Produto: {produto}, Categoria: Não encontrada")
 
 # Seção de Busca de Cliente
-elif opcao == 'Busca de Cliente':
-    st.header('Busca de Cliente')
+elif opcao == 'Informações por Código do Cliente':
+    st.header('Informações por Código do Cliente')
 
     # Input para buscar cliente
     id_cliente = st.sidebar.text_input('Digite o ID do cliente:')
@@ -407,10 +494,47 @@ elif opcao == 'Análises e Insights':
     A análise dos dados de vendas revelou insights valiosos sobre o comportamento dos clientes e a performance dos produtos. Implementar as estratégias recomendadas pode ajudar a aumentar a receita, melhorar a satisfação do cliente e fortalecer a fidelidade dos clientes. Este relatório fornece uma base sólida para decisões estratégicas que podem impulsionar o crescimento e a rentabilidade da empresa.
     """)
 
+# Seção de Previsão de Vendas
+elif opcao == 'Previsão de Vendas':
+    st.header('Previsão de Vendas com Machine Learning')
+
+    # Seleção de período para previsão
+    st.sidebar.header('Período de Previsão')
+    meses = st.sidebar.selectbox('Selecione o número de meses para previsão:', [1, 2, 3, 4, 5, 6])
+
+    # Executar previsão
+    r2, rmse, mae, y_test, y_pred = previsao_vendas(meses)
+
+    # Exibir métricas de avaliação
+    st.write(f"Período de Previsão: {meses} meses")
+    st.write(f"R²: {r2:.2f}")
+    st.write(f"RMSE: {rmse:.2f}")
+    st.write(f"MAE: {mae:.2f}")
+
+    # Visualizar os Resultados
+    plt.figure(figsize=(10, 5))
+    plt.scatter(y_test, y_pred, alpha=0.3)
+    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
+    plt.xlabel('Valor Real')
+    plt.ylabel('Previsão')
+    plt.title('Comparação entre Valor Real e Previsão')
+    st.pyplot(plt)
+
+    plt.figure(figsize=(10, 5))
+    plt.scatter(y_test, y_test - y_pred, alpha=0.3)
+    plt.axhline(y=0, color='r', linestyle='--')
+    plt.xlabel('Valor Real')
+    plt.ylabel('Resíduo')
+    plt.title('Gráfico de Resíduos')
+    st.pyplot(plt)
+
 # Instruções para uso:
 st.sidebar.write("### Instruções para uso:")
 st.sidebar.write("1. **Relatório de Vendas**: Utilize filtros para selecionar a data, categoria de preço, país e categoria de produto. Visualize indicadores de vendas, clientes e produtos, além de análises temporais.")
 st.sidebar.write("2. **Análise de Churn**: Use o filtro de churn para selecionar clientes que não compram há um certo período e visualizá-los.")
 st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para visualizar clientes e seus produtos recomendados.")
-st.sidebar.write("4. **Busca de Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
+st.sidebar.write("4. **Informações por Código do Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
 st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
+st.sidebar.write("6. **Previsão de Vendas**: Selecione o número de meses para a previsão de vendas e visualize os resultados.")
+
+
