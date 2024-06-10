@@ -208,8 +208,41 @@ if opcao == 'Relatório de Vendas':
     st.subheader('Tendência de Vendas ao Longo do Tempo')
     st.line_chart(calcular_tendencia_vendas(itens_fatura_filtrado))
 
-    # Rodapé
-    st.write('Relatório gerado por Streamlit')
+    # Seção de Análise de Churn
+    st.header('Análise de Churn')
+
+    # Calcular o tempo desde a última compra
+    data_referencia = pd.to_datetime(itens_fatura['DataFatura'].max())
+    tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
+
+    # Categorizar clientes por tempo desde a última compra
+    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 30) & (tempo_desde_ultima_compra['DataFatura'] <= 59)]
+    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 60) & (tempo_desde_ultima_compra['DataFatura'] <= 89)]
+    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 90) & (tempo_desde_ultima_compra['DataFatura'] <= 119)]
+    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 120) & (tempo_desde_ultima_compra['DataFatura'] <= 180)]
+    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra['DataFatura'] > 180]
+
+    # Seleção de categoria de churn
+    st.sidebar.header('Filtro de Churn')
+    opcao_churn = st.sidebar.selectbox('Selecione uma opção:', [
+        '30 a 59 dias', '60 a 89 dias', '90 a 119 dias', '120 a 180 dias (Churn)', 'Mais de 181 dias (Churn)'
+    ])
+
+    if opcao_churn == '30 a 59 dias':
+        st.subheader('Clientes que não compram há 30 a 59 dias:')
+        st.write(churn_30_59)
+    elif opcao_churn == '60 a 89 dias':
+        st.subheader('Clientes que não compram há 60 a 89 dias:')
+        st.write(churn_60_89)
+    elif opcao_churn == '90 a 119 dias':
+        st.subheader('Clientes que não compram há 90 a 119 dias:')
+        st.write(churn_90_119)
+    elif opcao_churn == '120 a 180 dias (Churn)':
+        st.subheader('Clientes que não compram há 120 a 180 dias (Churn):')
+        st.write(churn_120_180)
+    elif opcao_churn == 'Mais de 181 dias (Churn)':
+        st.subheader('Clientes que não compram há mais de 181 dias (Churn):')
+        st.write(churn_181_plus)
 
 # Seção de Segmentação de Clientes
 elif opcao == 'Segmentação de Clientes':
@@ -279,39 +312,6 @@ elif opcao == 'Busca de Cliente':
                 st.write(f"Cliente {id_cliente} não encontrado.")
         except ValueError:
             st.write("Por favor, insira um ID de cliente válido.")
-
-# Seção de Histórico de Vendas e Churn
-elif opcao == 'Histórico de Vendas e Churn':
-    st.header('Histórico de Vendas e Churn')
-
-    # Calcular o tempo desde a última compra
-    data_referencia = pd.to_datetime(itens_fatura['DataFatura'].max())
-    tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
-
-    # Categorizar clientes por tempo desde a última compra
-    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 30) & (tempo_desde_ultima_compra['DataFatura'] <= 59)]
-    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 60) & (tempo_desde_ultima_compra['DataFatura'] <= 89)]
-    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 90) & (tempo_desde_ultima_compra['DataFatura'] <= 119)]
-    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 120) & (tempo_desde_ultima_compra['DataFatura'] <= 180)]
-    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra['DataFatura'] > 180]
-
-    # Botões para filtrar por tempo desde a última compra
-    st.sidebar.header('Filtro de Churn')
-    if st.sidebar.button('30 a 59 dias'):
-        st.subheader('Clientes que não compram há 30 a 59 dias:')
-        st.write(churn_30_59)
-    if st.sidebar.button('60 a 89 dias'):
-        st.subheader('Clientes que não compram há 60 a 89 dias:')
-        st.write(churn_60_89)
-    if st.sidebar.button('90 a 119 dias'):
-        st.subheader('Clientes que não compram há 90 a 119 dias:')
-        st.write(churn_90_119)
-    if st.sidebar.button('120 a 180 dias (Churn)'):
-        st.subheader('Clientes que não compram há 120 a 180 dias (Churn):')
-        st.write(churn_120_180)
-    if st.sidebar.button('Mais de 181 dias (Churn)'):
-        st.subheader('Clientes que não compram há mais de 181 dias (Churn):')
-        st.write(churn_181_plus)
 
 # Seção de Análises e Insights
 elif opcao == 'Análises e Insights':
@@ -402,38 +402,4 @@ elif opcao == 'Análises e Insights':
     st.write("""
     A análise dos dados de vendas revelou insights valiosos sobre o comportamento dos clientes e a performance dos produtos. Implementar as estratégias recomendadas pode ajudar a aumentar a receita, melhorar a satisfação do cliente e fortalecer a fidelidade dos clientes. Este relatório fornece uma base sólida para decisões estratégicas que podem impulsionar o crescimento e a rentabilidade da empresa.
     """)
-
-# Seção de Análise de Churn
-elif opcao == 'Análise de Churn':
-    st.header('Análise de Churn')
-
-    # Calcular o tempo desde a última compra
-    data_referencia = pd.to_datetime(itens_fatura['DataFatura'].max())
-    tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
-
-    # Categorizar clientes por tempo desde a última compra
-    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 30) & (tempo_desde_ultima_compra['DataFatura'] <= 59)]
-    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 60) & (tempo_desde_ultima_compra['DataFatura'] <= 89)]
-    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 90) & (tempo_desde_ultima_compra['DataFatura'] <= 119)]
-    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 120) & (tempo_desde_ultima_compra['DataFatura'] <= 180)]
-    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra['DataFatura'] > 180]
-
-    # Botões para filtrar por tempo desde a última compra
-    st.sidebar.header('Filtro de Churn')
-    if st.sidebar.button('30 a 59 dias'):
-        st.subheader('Clientes que não compram há 30 a 59 dias:')
-        st.write(churn_30_59)
-    if st.sidebar.button('60 a 89 dias'):
-        st.subheader('Clientes que não compram há 60 a 89 dias:')
-        st.write(churn_60_89)
-    if st.sidebar.button('90 a 119 dias'):
-        st.subheader('Clientes que não compram há 90 a 119 dias:')
-        st.write(churn_90_119)
-    if st.sidebar.button('120 a 180 dias (Churn)'):
-        st.subheader('Clientes que não compram há 120 a 180 dias (Churn):')
-        st.write(churn_120_180)
-    if st.sidebar.button('Mais de 181 dias (Churn)'):
-        st.subheader('Clientes que não compram há mais de 181 dias (Churn):')
-        st.write(churn_181_plus)
-
 
