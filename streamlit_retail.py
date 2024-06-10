@@ -212,15 +212,12 @@ elif opcao == 'Segmentação de Clientes':
             clientes_segmento = segmentacao[segmentacao['segmento'] == int(segmento_selecionado)]
             clientes_ids = clientes_segmento['IDCliente'].unique()
             
-            # Filtrar dados de itens fatura para esses clientes
-            itens_fatura_filtrado = itens_fatura[itens_fatura['IDCliente'].isin(clientes_ids)]
-            
             st.write(f"Clientes no segmento {segmento_selecionado}:")
             for cliente in clientes_ids:
                 produtos_recomendados = clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]
                 st.write(f"Cliente {cliente}: {produtos_recomendados}")
                 for produto in eval(produtos_recomendados):
-                    categoria = produtos[produtos['CodigoProduto'] == produto]['Categoria']
+                    categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
                     if not categoria.empty:
                         categoria = categoria.values[0]
                         st.write(f"- Produto: {produto}, Categoria: {categoria}")
@@ -241,7 +238,7 @@ elif opcao == 'Busca de Cliente':
                 produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
                 st.write(f"Produtos recomendados para o cliente {id_cliente}:")
                 for produto in produtos_recomendados:
-                    categoria = produtos[produtos['CodigoProduto'] == produto]['Categoria']
+                    categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
                     if not categoria.empty:
                         categoria = categoria.values[0]
                         st.write(f"- Produto: {produto}, Categoria: {categoria}")
@@ -251,4 +248,3 @@ elif opcao == 'Busca de Cliente':
                 st.write(f"Cliente {id_cliente} não encontrado.")
         except ValueError:
             st.write("Por favor, insira um ID de cliente válido.")
-
