@@ -97,7 +97,7 @@ st.title('Relatório de Vendas e Segmentação de Clientes')
 
 # Menu lateral
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes'])
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Busca de Cliente'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
@@ -116,11 +116,6 @@ if opcao == 'Relatório de Vendas':
         ['Nenhum', 'Barato (abaixo de 5,00)', 'Moderado (5,00 a 20,00)', 'Caro (acima de 20,00)']
     )
 
-    # Seleção de categoria de produtos
-    st.sidebar.header('Filtro de Categoria de Produtos')
-    categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
-    categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
-
     # Seleção de país
     st.sidebar.header('Filtro de País')
     paises = ['Global'] + list(clientes['Pais'].unique())
@@ -137,12 +132,6 @@ if opcao == 'Relatório de Vendas':
             itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
     else:
         itens_fatura_filtrado = itens_fatura.copy()
-
-    # Filtrar dados por categoria de produto
-    if categoria_produto_selecionada != 'Nenhum':
-        if 'Categoria' not in itens_fatura_filtrado.columns:
-            itens_fatura_filtrado = itens_fatura_filtrado.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
-        itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Categoria'] == categoria_produto_selecionada]
 
     # Filtrar dados por país
     if pais_selecionado != 'Global':
@@ -211,23 +200,47 @@ if opcao == 'Relatório de Vendas':
 elif opcao == 'Segmentação de Clientes':
     st.header('Segmentação de Clientes')
 
-    # Seleção de segmento
-    segmento_selecionado = st.sidebar.selectbox('Selecione um Segmento:', segmentacao['segmento'].unique())
+    # Ajustar os segmentos de clientes de 1 a 5 e incluir a opção "Nenhum"
+    segmentos_ajustados = ['Nenhum'] + list(range(1, 6))
     
-    # Seleção de tipo de produto
-    tipo_produto_selecionado = st.sidebar.selectbox('Selecione um Tipo de Produto:', produtos['Categoria'].unique())
+    # Seleção de segmento
+    segmento_selecionado = st.sidebar.selectbox('Selecione um Segmento:', segmentos_ajustados)
 
-    if st.button('Mostrar Clientes'):
-        # Filtrar clientes por segmento e tipo de produto
-        clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_selecionado]
-        clientes_ids = clientes_segmento['IDCliente'].unique()
-        
-        itens_fatura_filtrado = itens_fatura[(itens_fatura['IDCliente'].isin(clientes_ids)) & 
-                                             (itens_fatura['Categoria'] == tipo_produto_selecionado)]
-        
-        clientes_filtrados = itens_fatura_filtrado['IDCliente'].unique()
-        
-        st.write(f"Clientes no segmento {segmento_selecionado} e tipo de produto {tipo_produto_selecionado}:")
-        for cliente in clientes_filtrados:
-            st.write(f"Cliente {cliente}: {clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]}")
+    if segmento_selecionado != 'Nenhum':
+        if st.button('Mostrar Clientes'):
+            # Filtrar clientes por segmento
+            clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_selecionado]
+            clientes_ids = clientes_segmento['IDCliente'].unique()
+            
+            # Filtrar dados de itens fatura para esses clientes
+            itens_fatura_filtrado = itens_fatura[itens_fatura['IDCliente'].isin(clientes_ids)]
+            
+            st.write(f"Clientes no segmento {segmento_selecionado}:")
+            for cliente in clientes_ids:
+                produtos_recomendados = clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]
+                st.write(f"Cliente {cliente}: {produtos_recomendados}")
+                for produto in eval(produtos_recomendados):
+                    categoria = produtos[produtos['CodigoProduto'] == produto]['Categoria'].values[0]
+                    st.write(f"- Produto: {produto}, Categoria: {categoria}")
+
+# Seção de Busca de Cliente
+elif opcao == 'Busca de Cliente':
+    st.header('Busca de Cliente')
+
+    # Input para buscar cliente
+    id_cliente = st.sidebar.text_input('Digite o ID do cliente:')
+    if id_cliente:
+        try:
+            id_cliente_float = float(id_cliente.replace(',', '.'))
+            cliente = segmentacao[segmentacao['IDCliente'] == id_cliente_float]
+            if not cliente.empty:
+                produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
+                st.write(f"Produtos recomendados para o cliente {id_cliente}:")
+                for produto in produtos_recomendados:
+                    categoria = produtos[produtos['CodigoProduto'] == produto]['Categoria'].values[0]
+                    st.write(f"- Produto: {produto}, Categoria: {categoria}")
+            else:
+                st.write(f"Cliente {id_cliente} não encontrado.")
+        except ValueError:
+            st.write("Por favor, insira um ID de cliente válido.")
 
