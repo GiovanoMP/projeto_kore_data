@@ -217,5 +217,3 @@ else:
             st.write(f"Produtos recomendados para o cliente {id_cliente}: {produtos_recomendados}")
         else:
             st.write(f"Cliente {id_cliente} não encontrado.")
-
-
