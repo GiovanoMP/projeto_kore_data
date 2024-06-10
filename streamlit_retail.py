@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
 # URLs dos arquivos no GitHub
 base_url = 'https://raw.githubusercontent.com/GiovanoMP/projeto_kore_data/main/'
@@ -30,6 +29,68 @@ segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
 # Verificar se a coluna 'Categoria' existe em itens_fatura e adicionar se necessário
 if 'Categoria' not in itens_fatura.columns:
     itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
+
+# Funções auxiliares para calcular os indicadores
+def calcular_receita_total(itens_fatura):
+    return itens_fatura['ValorTotal'].sum()
+
+def calcular_receita_diaria(itens_fatura, start_date, end_date):
+    filtro = (itens_fatura['DataFatura'].dt.date >= start_date) & (itens_fatura['DataFatura'].dt.date <= end_date)
+    receita_diaria = itens_fatura[filtro].groupby(itens_fatura['DataFatura'].dt.date)['ValorTotal'].sum()
+    return receita_diaria
+
+def calcular_receita_mensal(itens_fatura):
+    receita_mensal = itens_fatura.groupby(itens_fatura['DataFatura'].dt.to_period('M'))['ValorTotal'].sum()
+    return receita_mensal
+
+def calcular_receita_por_pais(itens_fatura, clientes):
+    merged_data = itens_fatura.merge(clientes, on='IDCliente')
+    if 'Pais' in merged_data.columns:
+        receita_pais = merged_data.groupby('Pais')['ValorTotal'].sum()
+        return receita_pais
+    else:
+        return pd.Series()
+
+def calcular_clientes_unicos(itens_fatura):
+    return itens_fatura['IDCliente'].nunique()
+
+def calcular_top_clientes(itens_fatura, n=100):
+    top_clientes = itens_fatura.groupby('IDCliente')['ValorTotal'].sum().nlargest(n).reset_index()
+    top_clientes['IDCliente'] = top_clientes['IDCliente'].astype(str)  # Ajustar a formatação
+    return top_clientes
+
+def calcular_frequencia_compras(itens_fatura):
+    frequencia = itens_fatura.groupby('IDCliente').size()
+    return frequencia
+
+def calcular_produtos_mais_vendidos(itens_fatura, produtos):
+    vendidos = itens_fatura.groupby('CodigoProduto')['Quantidade'].sum().nlargest(10).reset_index()
+    return vendidos.merge(produtos, on='CodigoProduto')
+
+def calcular_produtos_melhor_desempenho(itens_fatura, produtos):
+    desempenho = itens_fatura.groupby('CodigoProduto')['ValorTotal'].sum().nlargest(10).reset_index()
+    return desempenho.merge(produtos, on='CodigoProduto')
+
+def calcular_produtos_mais_devolvidos(itens_fatura, produtos):
+    devolvidos = itens_fatura[itens_fatura['Devolucao'] == True].groupby('CodigoProduto')['Quantidade'].sum().nlargest(10).reset_index()
+    return devolvidos.merge(produtos, on='CodigoProduto')
+
+def calcular_numero_transacoes(itens_fatura):
+    return itens_fatura['NumeroFatura'].nunique()
+
+def calcular_transacoes_com_devolucoes(itens_fatura):
+    return itens_fatura[itens_fatura['Devolucao'] == True]['NumeroFatura'].nunique()
+
+def calcular_ticket_medio(itens_fatura):
+    return itens_fatura['ValorTotal'].mean()
+
+def calcular_variacao_sazonal(itens_fatura):
+    variacao = itens_fatura.groupby(itens_fatura['DataFatura'].dt.month)['ValorTotal'].sum()
+    return variacao
+
+def calcular_tendencia_vendas(itens_fatura):
+    tendencia = itens_fatura.groupby(itens_fatura['DataFatura'].dt.to_period('M'))['ValorTotal'].sum()
+    return tendencia
 
 # Título do app
 st.title('Relatório de Vendas e Segmentação de Clientes')
@@ -167,4 +228,6 @@ elif opcao == 'Segmentação de Clientes':
         clientes_filtrados = itens_fatura_filtrado['IDCliente'].unique()
         
         st.write(f"Clientes no segmento {segmento_selecionado} e tipo de produto {tipo_produto_selecionado}:")
-        st.write(clientes_filtrados)
+        for cliente in clientes_filtrados:
+            st.write(f"Cliente {cliente}: {clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]}")
+
