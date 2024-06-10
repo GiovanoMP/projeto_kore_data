@@ -201,28 +201,30 @@ elif opcao == 'Segmentação de Clientes':
     st.header('Segmentação de Clientes')
 
     # Ajustar os segmentos de clientes de 1 a 5 e incluir a opção "Nenhum"
-    segmentos_ajustados = ['Nenhum'] + list(range(1, 6))
+    segmentos_ajustados = ['Nenhum'] + [f'Segmento {i}' for i in range(1, 6)]
     
     # Seleção de segmento
     segmento_selecionado = st.sidebar.selectbox('Selecione um Segmento:', segmentos_ajustados)
 
     if segmento_selecionado != 'Nenhum':
         if st.button('Mostrar Clientes'):
+            # Extrair o número do segmento
+            segmento_numero = int(segmento_selecionado.split()[-1])
+            
             # Filtrar clientes por segmento
-            clientes_segmento = segmentacao[segmentacao['segmento'] == int(segmento_selecionado)]
+            clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_numero]
             clientes_ids = clientes_segmento['IDCliente'].unique()
             
-            st.write(f"Clientes no segmento {segmento_selecionado}:")
+            st.write(f"Clientes no {segmento_selecionado}:")
             for cliente in clientes_ids:
                 produtos_recomendados = clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]
-                st.write(f"Cliente {cliente}: {produtos_recomendados}")
                 for produto in eval(produtos_recomendados):
                     categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
                     if not categoria.empty:
                         categoria = categoria.values[0]
-                        st.write(f"- Produto: {produto}, Categoria: {categoria}")
+                        st.write(f"Cliente {cliente}: Produto: {produto}, Categoria: {categoria}")
                     else:
-                        st.write(f"- Produto: {produto}, Categoria: Não encontrada")
+                        st.write(f"Cliente {cliente}: Produto: {produto}, Categoria: Não encontrada")
 
 # Seção de Busca de Cliente
 elif opcao == 'Busca de Cliente':
@@ -248,3 +250,4 @@ elif opcao == 'Busca de Cliente':
                 st.write(f"Cliente {id_cliente} não encontrado.")
         except ValueError:
             st.write("Por favor, insira um ID de cliente válido.")
+
