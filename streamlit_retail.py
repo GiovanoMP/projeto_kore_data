@@ -22,7 +22,7 @@ itens_fatura = itens_fatura.dropna(subset=['DataFatura'])
 
 # Garantir que os nomes das colunas estejam corretos
 clientes.rename(columns=lambda x: x.strip(), inplace=True)
-itens_fatura.rename(columns=lambda x: x.strip(), inplace=True)
+itens_fatura.rename(columns(lambda x: x.strip()), inplace=True)
 produtos.rename(columns=lambda x: x.strip(), inplace=True)
 segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
 
@@ -217,14 +217,15 @@ elif opcao == 'Segmentação de Clientes':
             
             st.write(f"Clientes no {segmento_selecionado}:")
             for cliente in clientes_ids:
+                st.write(f"Cliente {cliente}:")
                 produtos_recomendados = clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]
                 for produto in eval(produtos_recomendados):
                     categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
                     if not categoria.empty:
                         categoria = categoria.values[0]
-                        st.write(f"Cliente {cliente}: Produto: {produto}, Categoria: {categoria}")
+                        st.write(f"  - Produto: {produto}, Categoria: {categoria}")
                     else:
-                        st.write(f"Cliente {cliente}: Produto: {produto}, Categoria: Não encontrada")
+                        st.write(f"  - Produto: {produto}, Categoria: Não encontrada")
 
 # Seção de Busca de Cliente
 elif opcao == 'Busca de Cliente':
@@ -237,17 +238,18 @@ elif opcao == 'Busca de Cliente':
             id_cliente_float = float(id_cliente.replace(',', '.'))
             cliente = segmentacao[segmentacao['IDCliente'] == id_cliente_float]
             if not cliente.empty:
-                produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
                 st.write(f"Produtos recomendados para o cliente {id_cliente}:")
+                produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
                 for produto in produtos_recomendados:
                     categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
                     if not categoria.empty:
                         categoria = categoria.values[0]
-                        st.write(f"- Produto: {produto}, Categoria: {categoria}")
+                        st.write(f"  - Produto: {produto}, Categoria: {categoria}")
                     else:
-                        st.write(f"- Produto: {produto}, Categoria: Não encontrada")
+                        st.write(f"  - Produto: {produto}, Categoria: Não encontrada")
             else:
                 st.write(f"Cliente {id_cliente} não encontrado.")
         except ValueError:
             st.write("Por favor, insira um ID de cliente válido.")
+
 
