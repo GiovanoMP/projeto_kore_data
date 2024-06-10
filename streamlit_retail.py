@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 # URLs dos arquivos no GitHub
 base_url = 'https://raw.githubusercontent.com/GiovanoMP/projeto_kore_data/main/'
@@ -12,6 +13,7 @@ url_segmentacao = base_url + 'df_treinamento_reduzido.csv'
 clientes = pd.read_csv(url_clientes)
 itens_fatura = pd.read_csv(url_itens_fatura)
 produtos = pd.read_csv(url_produtos)
+segmentacao = pd.read_csv(url_segmentacao)
 
 # Converter a coluna 'DataFatura' para datetime
 itens_fatura['DataFatura'] = pd.to_datetime(itens_fatura['DataFatura'], errors='coerce')
@@ -23,72 +25,11 @@ itens_fatura = itens_fatura.dropna(subset=['DataFatura'])
 clientes.rename(columns=lambda x: x.strip(), inplace=True)
 itens_fatura.rename(columns=lambda x: x.strip(), inplace=True)
 produtos.rename(columns=lambda x: x.strip(), inplace=True)
+segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
 
 # Verificar se a coluna 'Categoria' existe em itens_fatura e adicionar se necessário
 if 'Categoria' not in itens_fatura.columns:
     itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
-
-# Funções auxiliares para calcular os indicadores
-def calcular_receita_total(itens_fatura):
-    return itens_fatura['ValorTotal'].sum()
-
-def calcular_receita_diaria(itens_fatura, start_date, end_date):
-    filtro = (itens_fatura['DataFatura'].dt.date >= start_date) & (itens_fatura['DataFatura'].dt.date <= end_date)
-    receita_diaria = itens_fatura[filtro].groupby(itens_fatura['DataFatura'].dt.date)['ValorTotal'].sum()
-    return receita_diaria
-
-def calcular_receita_mensal(itens_fatura):
-    receita_mensal = itens_fatura.groupby(itens_fatura['DataFatura'].dt.to_period('M'))['ValorTotal'].sum()
-    return receita_mensal
-
-def calcular_receita_por_pais(itens_fatura, clientes):
-    merged_data = itens_fatura.merge(clientes, on='IDCliente')
-    if 'Pais' in merged_data.columns:
-        receita_pais = merged_data.groupby('Pais')['ValorTotal'].sum()
-        return receita_pais
-    else:
-        return pd.Series()
-
-def calcular_clientes_unicos(itens_fatura):
-    return itens_fatura['IDCliente'].nunique()
-
-def calcular_top_clientes(itens_fatura, n=100):
-    top_clientes = itens_fatura.groupby('IDCliente')['ValorTotal'].sum().nlargest(n).reset_index()
-    top_clientes['IDCliente'] = top_clientes['IDCliente'].astype(str)  # Ajustar a formatação
-    return top_clientes
-
-def calcular_frequencia_compras(itens_fatura):
-    frequencia = itens_fatura.groupby('IDCliente').size()
-    return frequencia
-
-def calcular_produtos_mais_vendidos(itens_fatura, produtos):
-    vendidos = itens_fatura.groupby('CodigoProduto')['Quantidade'].sum().nlargest(10).reset_index()
-    return vendidos.merge(produtos, on='CodigoProduto')
-
-def calcular_produtos_melhor_desempenho(itens_fatura, produtos):
-    desempenho = itens_fatura.groupby('CodigoProduto')['ValorTotal'].sum().nlargest(10).reset_index()
-    return desempenho.merge(produtos, on='CodigoProduto')
-
-def calcular_produtos_mais_devolvidos(itens_fatura, produtos):
-    devolvidos = itens_fatura[itens_fatura['Devolucao'] == True].groupby('CodigoProduto')['Quantidade'].sum().nlargest(10).reset_index()
-    return devolvidos.merge(produtos, on='CodigoProduto')
-
-def calcular_numero_transacoes(itens_fatura):
-    return itens_fatura['NumeroFatura'].nunique()
-
-def calcular_transacoes_com_devolucoes(itens_fatura):
-    return itens_fatura[itens_fatura['Devolucao'] == True]['NumeroFatura'].nunique()
-
-def calcular_ticket_medio(itens_fatura):
-    return itens_fatura['ValorTotal'].mean()
-
-def calcular_variacao_sazonal(itens_fatura):
-    variacao = itens_fatura.groupby(itens_fatura['DataFatura'].dt.month)['ValorTotal'].sum()
-    return variacao
-
-def calcular_tendencia_vendas(itens_fatura):
-    tendencia = itens_fatura.groupby(itens_fatura['DataFatura'].dt.to_period('M'))['ValorTotal'].sum()
-    return tendencia
 
 # Título do app
 st.title('Relatório de Vendas e Segmentação de Clientes')
@@ -206,36 +147,24 @@ if opcao == 'Relatório de Vendas':
     st.write('Relatório gerado por Streamlit')
 
 # Seção de Segmentação de Clientes
-else:
+elif opcao == 'Segmentação de Clientes':
     st.header('Segmentação de Clientes')
 
-    # Carregar o dataframe de segmentação
-    segmentacao = pd.read_csv(url_segmentacao, decimal=',') # Lê CSV com separador decimal
-    segmentacao['IDCliente'] = segmentacao['IDCliente'].astype(float)  # Converte a coluna 'IDCliente' para float
+    # Seleção de segmento
+    segmento_selecionado = st.sidebar.selectbox('Selecione um Segmento:', segmentacao['segmento'].unique())
+    
+    # Seleção de tipo de produto
+    tipo_produto_selecionado = st.sidebar.selectbox('Selecione um Tipo de Produto:', produtos['Categoria'].unique())
 
-    # Remove duplicatas no dataframe de segmentação
-    segmentacao = segmentacao.drop_duplicates(subset=['IDCliente', 'segmento'])
-
-    # Criar um dicionário para armazenar os clientes e produtos por tipo
-    clientes_por_tipo = {}
-    for tipo in segmentacao['segmento'].unique():
-        clientes_por_tipo[tipo] = segmentacao[segmentacao['segmento'] == tipo]
-
-    # Criar botões para cada tipo de cliente
-    st.sidebar.header('Tipos de Clientes')
-    tipo_selecionado = st.sidebar.selectbox(
-        'Escolha um tipo de cliente:',
-        list(clientes_por_tipo.keys())
-    )
-
-    # Exibir informações do tipo selecionado
-    if tipo_selecionado:
-        clientes_do_tipo = clientes_por_tipo[tipo_selecionado]
-        st.write(f"Clientes do tipo {tipo_selecionado}:")
-        st.dataframe(clientes_do_tipo)
-
-        # Mostrar produtos recomendados para o tipo
-        st.write(f"Produtos recomendados para clientes do tipo {tipo_selecionado}:")
-        for index, row in clientes_do_tipo.iterrows():
-            produtos_recomendados = eval(row['ProdutosRecomendados'])
-            st.write(f"Cliente {row['IDCliente']}: {produtos_recomendados}")
+    if st.button('Mostrar Clientes'):
+        # Filtrar clientes por segmento e tipo de produto
+        clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_selecionado]
+        clientes_ids = clientes_segmento['IDCliente'].unique()
+        
+        itens_fatura_filtrado = itens_fatura[(itens_fatura['IDCliente'].isin(clientes_ids)) & 
+                                             (itens_fatura['Categoria'] == tipo_produto_selecionado)]
+        
+        clientes_filtrados = itens_fatura_filtrado['IDCliente'].unique()
+        
+        st.write(f"Clientes no segmento {segmento_selecionado} e tipo de produto {tipo_produto_selecionado}:")
+        st.write(clientes_filtrados)
