@@ -92,12 +92,18 @@ def calcular_tendencia_vendas(itens_fatura):
     tendencia = itens_fatura.groupby(itens_fatura['DataFatura'].dt.to_period('M'))['ValorTotal'].sum()
     return tendencia
 
+# Função para calcular o tempo desde a última compra
+def calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia):
+    ultima_compra = itens_fatura.groupby('IDCliente')['DataFatura'].max()
+    dias_desde_ultima_compra = (data_referencia - ultima_compra).dt.days
+    return dias_desde_ultima_compra
+
 # Título do app
 st.title('Relatório de Vendas e Segmentação de Clientes')
 
 # Menu lateral
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Busca de Cliente'])
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Busca de Cliente', 'Histórico de Vendas e Churn'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
@@ -239,7 +245,19 @@ elif opcao == 'Busca de Cliente':
             id_cliente_float = float(id_cliente.replace(',', '.'))
             cliente = segmentacao[segmentacao['IDCliente'] == id_cliente_float]
             if not cliente.empty:
-                st.write(f"Produtos recomendados para o cliente {id_cliente}:")
+                cliente_info = clientes[clientes['IDCliente'] == id_cliente_float]
+                valor_total = itens_fatura[itens_fatura['IDCliente'] == id_cliente_float]['ValorTotal'].sum()
+                ultimos_produtos = itens_fatura[itens_fatura['IDCliente'] == id_cliente_float].sort_values(by='DataFatura', ascending=False).head(5)
+                
+                st.write(f"Informações do cliente {id_cliente}:")
+                if not cliente_info.empty:
+                    st.write(f"País: {cliente_info['Pais'].values[0]}")
+                st.write(f"Valor total de compras: ${valor_total:,.2f}")
+                st.write("Últimos produtos comprados:")
+                for _, row in ultimos_produtos.iterrows():
+                    st.write(f"  - Produto: {row['CodigoProduto']}, Data: {row['DataFatura'].date()}, Valor: ${row['ValorTotal']:,.2f}")
+                
+                st.write("Produtos recomendados:")
                 produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
                 for produto in produtos_recomendados:
                     categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
@@ -252,4 +270,36 @@ elif opcao == 'Busca de Cliente':
                 st.write(f"Cliente {id_cliente} não encontrado.")
         except ValueError:
             st.write("Por favor, insira um ID de cliente válido.")
+
+# Seção de Histórico de Vendas e Churn
+elif opcao == 'Histórico de Vendas e Churn':
+    st.header('Histórico de Vendas e Churn')
+
+    # Calcular o tempo desde a última compra
+    data_referencia = pd.to_datetime(itens_fatura['DataFatura'].max())
+    tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
+
+    # Categorizar clientes por tempo desde a última compra
+    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra >= 30) & (tempo_desde_ultima_compra <= 59)]
+    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra >= 60) & (tempo_desde_ultima_compra <= 89)]
+    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra >= 90) & (tempo_desde_ultima_compra <= 119)]
+    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra >= 120) & (tempo_desde_ultima_compra <= 180)]
+    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra > 180]
+
+    # Exibir os clientes em cada categoria de churn
+    st.subheader('Clientes que não compram há 30 a 59 dias:')
+    st.write(churn_30_59)
+
+    st.subheader('Clientes que não compram há 60 a 89 dias:')
+    st.write(churn_60_89)
+
+    st.subheader('Clientes que não compram há 90 a 119 dias:')
+    st.write(churn_90_119)
+
+    st.subheader('Clientes que não compram há 120 a 180 dias (Churn):')
+    st.write(churn_120_180)
+
+    st.subheader('Clientes que não compram há mais de 181 dias (Churn):')
+    st.write(churn_181_plus)
+
 
