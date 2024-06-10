@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 
 # Carregar os dataframes
-clientes = pd.read_csv('clientes.csv')
-itens_fatura = pd.read_csv('itens_fatura.csv')
-produtos = pd.read_csv('produtos.csv')
-segmentacao = pd.read_csv('df_treinamento_reduzido.csv', decimal=',')  # Lê CSV com separador decimal
+clientes = pd.read_csv('/mnt/data/clientes.csv')
+itens_fatura = pd.read_csv('/mnt/data/itens_fatura.csv')
+produtos = pd.read_csv('/mnt/data/produtos.csv')
+segmentacao = pd.read_csv('/mnt/data/df_treinamento_reduzido.csv', decimal=',')  # Lê CSV com separador decimal
 segmentacao['IDCliente'] = segmentacao['IDCliente'].astype(float)  # Converte a coluna 'IDCliente' para float
 
 # Remove duplicatas no dataframe de segmentação
@@ -217,4 +217,5 @@ else:
             st.write(f"Produtos recomendados para o cliente {id_cliente}: {produtos_recomendados}")
         else:
             st.write(f"Cliente {id_cliente} não encontrado.")
+
 
