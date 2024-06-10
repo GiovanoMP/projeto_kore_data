@@ -56,7 +56,7 @@ def calcular_clientes_unicos(itens_fatura):
 
 def calcular_top_clientes(itens_fatura, n=100):
     top_clientes = itens_fatura.groupby('IDCliente')['ValorTotal'].sum().nlargest(n).reset_index()
-    top_clientes['IDCliente'] = top_clientes['IDCliente'].astype(str)  # Ajustar a formatação
+    top_clientes['IDCliente'] = top_clientes['IDCliente'].astype(str) 
     return top_clientes
 
 def calcular_frequencia_compras(itens_fatura):
@@ -209,7 +209,7 @@ elif opcao == 'Segmentação de Clientes':
     if segmento_selecionado != 'Nenhum':
         if st.button('Mostrar Clientes'):
             # Filtrar clientes por segmento
-            clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_selecionado]
+            clientes_segmento = segmentacao[segmentacao['segmento'] == int(segmento_selecionado)]
             clientes_ids = clientes_segmento['IDCliente'].unique()
             
             # Filtrar dados de itens fatura para esses clientes
@@ -220,8 +220,12 @@ elif opcao == 'Segmentação de Clientes':
                 produtos_recomendados = clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]
                 st.write(f"Cliente {cliente}: {produtos_recomendados}")
                 for produto in eval(produtos_recomendados):
-                    categoria = produtos[produtos['CodigoProduto'] == produto]['Categoria'].values[0]
-                    st.write(f"- Produto: {produto}, Categoria: {categoria}")
+                    categoria = produtos[produtos['CodigoProduto'] == produto]['Categoria']
+                    if not categoria.empty:
+                        categoria = categoria.values[0]
+                        st.write(f"- Produto: {produto}, Categoria: {categoria}")
+                    else:
+                        st.write(f"- Produto: {produto}, Categoria: Não encontrada")
 
 # Seção de Busca de Cliente
 elif opcao == 'Busca de Cliente':
@@ -237,8 +241,12 @@ elif opcao == 'Busca de Cliente':
                 produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
                 st.write(f"Produtos recomendados para o cliente {id_cliente}:")
                 for produto in produtos_recomendados:
-                    categoria = produtos[produtos['CodigoProduto'] == produto]['Categoria'].values[0]
-                    st.write(f"- Produto: {produto}, Categoria: {categoria}")
+                    categoria = produtos[produtos['CodigoProduto'] == produto]['Categoria']
+                    if not categoria.empty:
+                        categoria = categoria.values[0]
+                        st.write(f"- Produto: {produto}, Categoria: {categoria}")
+                    else:
+                        st.write(f"- Produto: {produto}, Categoria: Não encontrada")
             else:
                 st.write(f"Cliente {id_cliente} não encontrado.")
         except ValueError:
