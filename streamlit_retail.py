@@ -5,7 +5,8 @@ import pandas as pd
 clientes = pd.read_csv('clientes.csv')
 itens_fatura = pd.read_csv('itens_fatura.csv')
 produtos = pd.read_csv('produtos.csv')
-segmentacao = pd.read_csv('df_treinamento_reduzido.csv')
+segmentacao = pd.read_csv('df_treinamento_reduzido.csv', decimal=',')  # Lê CSV com separador decimal
+segmentacao['IDCliente'] = segmentacao['IDCliente'].astype(float) # Converte a coluna 'IDCliente' para float
 
 # Pré-processamento de dados
 itens_fatura['DataFatura'] = pd.to_datetime(itens_fatura['DataFatura'], errors='coerce')
