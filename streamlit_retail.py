@@ -252,4 +252,3 @@ elif opcao == 'Busca de Cliente':
         except ValueError:
             st.write("Por favor, insira um ID de cliente válido.")
 
-
