@@ -1,10 +1,17 @@
 import streamlit as st
 import pandas as pd
 
+# URLs dos arquivos no GitHub
+base_url = 'https://raw.githubusercontent.com/GiovanoMP/projeto_kore_data/main/'
+url_clientes = base_url + 'clientes.csv'
+url_itens_fatura = base_url + 'itens_fatura.csv'
+url_produtos = base_url + 'produtos.csv'
+url_segmentacao = base_url + 'df_treinamento_reduzido.csv'
+
 # Carregar os dataframes
-clientes = pd.read_csv('clientes.csv')
-itens_fatura = pd.read_csv('itens_fatura.csv')
-produtos = pd.read_csv('produtos.csv')
+clientes = pd.read_csv(url_clientes)
+itens_fatura = pd.read_csv(url_itens_fatura)
+produtos = pd.read_csv(url_produtos)
 
 # Converter a coluna 'DataFatura' para datetime
 itens_fatura['DataFatura'] = pd.to_datetime(itens_fatura['DataFatura'], errors='coerce')
@@ -202,29 +209,27 @@ if opcao == 'Relatório de Vendas':
 else:
     st.header('Segmentação de Clientes')
 
-    # Upload do arquivo df_treinamento_reduzido.csv
-    segmentacao_file = st.file_uploader("Upload df_treinamento_reduzido.csv", type=["csv"])
-    
-    if segmentacao_file:
-        segmentacao = pd.read_csv(segmentacao_file)  # Lê CSV sem especificar separador decimal
-        segmentacao['IDCliente'] = segmentacao['IDCliente'].astype(float)  # Converte a coluna 'IDCliente' para float
+    # Carregar o dataframe de segmentação
+    segmentacao = pd.read_csv(url_segmentacao)
+    segmentacao['IDCliente'] = segmentacao['IDCliente'].astype(float)  # Converte a coluna 'IDCliente' para float
 
-        # Remove duplicatas no dataframe de segmentação
-        segmentacao = segmentacao.drop_duplicates(subset=['IDCliente', 'segmento'])
+    # Remove duplicatas no dataframe de segmentação
+    segmentacao = segmentacao.drop_duplicates(subset=['IDCliente', 'segmento'])
 
-        # Mostrar informações de segmentação
-        st.write("Segmentação de clientes:", segmentacao)
+    # Mostrar informações de segmentação
+    st.write("Segmentação de clientes:", segmentacao)
 
-        # Mostrar produtos recomendados para um cliente
-        id_cliente = st.text_input('Digite o ID do cliente:')
-        if id_cliente:
-            try:
-                id_cliente_float = float(id_cliente.replace(',', '.'))
-                cliente = segmentacao[segmentacao['IDCliente'] == id_cliente_float]
-                if not cliente.empty:
-                    produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
-                    st.write(f"Produtos recomendados para o cliente {id_cliente}: {produtos_recomendados}")
-                else:
-                    st.write(f"Cliente {id_cliente} não encontrado.")
-            except ValueError:
-                st.write("Por favor, insira um ID de cliente válido.")
+    # Mostrar produtos recomendados para um cliente
+    id_cliente = st.text_input('Digite o ID do cliente:')
+    if id_cliente:
+        try:
+            id_cliente_float = float(id_cliente.replace(',', '.'))
+            cliente = segmentacao[segmentacao['IDCliente'] == id_cliente_float]
+            if not cliente.empty:
+                produtos_recomendados = eval(cliente['ProdutosRecomendados'].values[0])
+                st.write(f"Produtos recomendados para o cliente {id_cliente}: {produtos_recomendados}")
+            else:
+                st.write(f"Cliente {id_cliente} não encontrado.")
+        except ValueError:
+            st.write("Por favor, insira um ID de cliente válido.")
+
