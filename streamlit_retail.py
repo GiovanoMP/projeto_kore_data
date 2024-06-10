@@ -94,16 +94,16 @@ def calcular_tendencia_vendas(itens_fatura):
 
 # Função para calcular o tempo desde a última compra
 def calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia):
-    ultima_compra = itens_fatura.groupby('IDCliente')['DataFatura'].max()
-    dias_desde_ultima_compra = (data_referencia - ultima_compra).dt.days
-    return dias_desde_ultima_compra.reset_index()
+    ultima_compra = itens_fatura.groupby('IDCliente')['DataFatura'].max().reset_index()
+    ultima_compra['DiasDesdeUltimaCompra'] = (data_referencia - ultima_compra['DataFatura']).dt.days
+    return ultima_compra[['IDCliente', 'DiasDesdeUltimaCompra']]
 
 # Título do app
 st.title('Relatório de Vendas e Segmentação de Clientes')
 
 # Menu lateral
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Busca de Cliente', 'Histórico de Vendas e Churn', 'Análises e Insights'])
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Segmentação de Clientes', 'Busca de Cliente', 'Análises e Insights'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
@@ -216,11 +216,11 @@ if opcao == 'Relatório de Vendas':
     tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
 
     # Categorizar clientes por tempo desde a última compra
-    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 30) & (tempo_desde_ultima_compra['DataFatura'] <= 59)]
-    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 60) & (tempo_desde_ultima_compra['DataFatura'] <= 89)]
-    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 90) & (tempo_desde_ultima_compra['DataFatura'] <= 119)]
-    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DataFatura'] >= 120) & (tempo_desde_ultima_compra['DataFatura'] <= 180)]
-    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra['DataFatura'] > 180]
+    churn_30_59 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] >= 30) & (tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] <= 59)]
+    churn_60_89 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] >= 60) & (tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] <= 89)]
+    churn_90_119 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] >= 90) & (tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] <= 119)]
+    churn_120_180 = tempo_desde_ultima_compra[(tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] >= 120) & (tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] <= 180)]
+    churn_181_plus = tempo_desde_ultima_compra[tempo_desde_ultima_compra['DiasDesdeUltimaCompra'] > 180]
 
     # Seleção de categoria de churn
     st.sidebar.header('Filtro de Churn')
@@ -230,19 +230,19 @@ if opcao == 'Relatório de Vendas':
 
     if opcao_churn == '30 a 59 dias':
         st.subheader('Clientes que não compram há 30 a 59 dias:')
-        st.write(churn_30_59)
+        st.dataframe(churn_30_59)
     elif opcao_churn == '60 a 89 dias':
         st.subheader('Clientes que não compram há 60 a 89 dias:')
-        st.write(churn_60_89)
+        st.dataframe(churn_60_89)
     elif opcao_churn == '90 a 119 dias':
         st.subheader('Clientes que não compram há 90 a 119 dias:')
-        st.write(churn_90_119)
+        st.dataframe(churn_90_119)
     elif opcao_churn == '120 a 180 dias (Churn)':
         st.subheader('Clientes que não compram há 120 a 180 dias (Churn):')
-        st.write(churn_120_180)
+        st.dataframe(churn_120_180)
     elif opcao_churn == 'Mais de 181 dias (Churn)':
         st.subheader('Clientes que não compram há mais de 181 dias (Churn):')
-        st.write(churn_181_plus)
+        st.dataframe(churn_181_plus)
 
 # Seção de Segmentação de Clientes
 elif opcao == 'Segmentação de Clientes':
@@ -402,4 +402,12 @@ elif opcao == 'Análises e Insights':
     st.write("""
     A análise dos dados de vendas revelou insights valiosos sobre o comportamento dos clientes e a performance dos produtos. Implementar as estratégias recomendadas pode ajudar a aumentar a receita, melhorar a satisfação do cliente e fortalecer a fidelidade dos clientes. Este relatório fornece uma base sólida para decisões estratégicas que podem impulsionar o crescimento e a rentabilidade da empresa.
     """)
+
+# Instruções para uso:
+st.sidebar.write("### Instruções para uso:")
+st.sidebar.write("1. **Relatório de Vendas**: Utilize filtros para selecionar a data, categoria de preço, país e categoria de produto. Visualize indicadores de vendas, clientes e produtos, além de análises temporais.")
+st.sidebar.write("2. **Análise de Churn**: Use o filtro de churn para selecionar clientes que não compram há um certo período e visualizá-los.")
+st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para visualizar clientes e seus produtos recomendados.")
+st.sidebar.write("4. **Busca de Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
+st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
 
