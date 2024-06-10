@@ -22,7 +22,7 @@ itens_fatura = itens_fatura.dropna(subset=['DataFatura'])
 
 # Garantir que os nomes das colunas estejam corretos
 clientes.rename(columns=lambda x: x.strip(), inplace=True)
-itens_fatura.rename(columns(lambda x: x.strip()), inplace=True)
+itens_fatura.rename(columns=lambda x: x.strip(), inplace=True)
 produtos.rename(columns=lambda x: x.strip(), inplace=True)
 segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
 
@@ -219,6 +219,7 @@ elif opcao == 'Segmentação de Clientes':
             for cliente in clientes_ids:
                 st.write(f"Cliente {cliente}:")
                 produtos_recomendados = clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]
+                st.write("Produtos recomendados:")
                 for produto in eval(produtos_recomendados):
                     categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
                     if not categoria.empty:
