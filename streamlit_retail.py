@@ -211,7 +211,7 @@ if opcao == 'Relatório de Vendas':
     categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
     categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
-   if categoria_preco != 'Nenhum':
+    if categoria_preco != 'Nenhum':
     itens_fatura_filtrado = itens_fatura.merge(produtos, on='CodigoProduto')
     if categoria_preco == 'Barato (abaixo de 5,00)':
         itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] < 5]
@@ -219,7 +219,7 @@ if opcao == 'Relatório de Vendas':
         itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
     elif categoria_preco == 'Caro (acima de 20,00)':
         itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
-    else:
+else:
     itens_fatura_filtrado = itens_fatura.copy()
 
     if pais_selecionado != 'Global':
