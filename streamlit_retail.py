@@ -424,30 +424,39 @@ elif opcao == 'Previsão de Vendas':
         df['Mes'] = df['DataFatura'].dt.month
         df['Dia'] = df['DataFatura'].dt.day
         df['DiaSemana'] = df['DataFatura'].dt.dayofweek
-        df['SemanaAno'] = df['DataFatura'].dt.isocalendar().week
-        df = pd.get_dummies(df, columns=['Pais', 'CategoriaPreco'], drop_first=True)
         return df
 
-    df_treinamento = preprocessar_dados(itens_fatura)
+    # Preparar os dados para a previsão
+    itens_fatura_previsao = itens_fatura.copy()
+    itens_fatura_previsao = preprocessar_dados(itens_fatura_previsao)
+    itens_fatura_previsao = itens_fatura_previsao.groupby(['Ano', 'Mes', 'Dia', 'DiaSemana'])['ValorTotal'].sum().reset_index()
 
-    # Seleção de features e target
-    X = df_treinamento.drop(['ValorTotal', 'NumeroFatura', 'CodigoProduto', 'Descricao', 'IDCliente', 'DataFatura'], axis=1)
-    y = df_treinamento['ValorTotal']
-
-    # Dividir os dados em treino e teste
+    # Separar os dados em treino e teste
+    X = itens_fatura_previsao[['Ano', 'Mes', 'Dia', 'DiaSemana']]
+    y = itens_fatura_previsao['ValorTotal']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # Normalizar os dados
+    # Pré-processamento dos dados
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
-    # Treinar o modelo
-    modelo = XGBRegressor(random_state=42)
-    modelo.fit(X_train, y_train)
+    # Treinar o modelo XGBoost
+    modelo_xgboost = XGBRegressor(random_state=42)
+    param_grid = {
+        'n_estimators': [100, 200, 300],
+        'learning_rate': [0.01, 0.1, 0.2],
+        'max_depth': [3, 5, 7],
+        'subsample': [0.5, 0.7, 1.0],
+        'colsample_bytree': [0.5, 0.7, 1.0]
+    }
+    search = RandomizedSearchCV(modelo_xgboost, param_grid, n_iter=10, cv=5, scoring='neg_mean_squared_error', random_state=42)
+    search.fit(X_train, y_train)
 
-    # Prever e avaliar o modelo
-    y_pred = modelo.predict(X_test)
+    # Fazer a previsão
+    y_pred = search.best_estimator_.predict(X_test)
+
+    # Avaliar o modelo
     r2 = r2_score(y_test, y_pred)
     rmse = mean_squared_error(y_test, y_pred, squared=False)
     mae = mean_absolute_error(y_test, y_pred)
@@ -456,12 +465,13 @@ elif opcao == 'Previsão de Vendas':
     st.write(f'RMSE: {rmse:.2f}')
     st.write(f'MAE: {mae:.2f}')
 
-    # Visualizar os resultados
+    # Visualizar os resultados da previsão
     fig, ax = plt.subplots()
-    ax.scatter(y_test, y_pred)
-    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=4)
-    ax.set_xlabel('Valor Real')
-    ax.set_ylabel('Previsão')
+    ax.plot(y_test.index, y_test, label='Valor Real')
+    ax.plot(y_test.index, y_pred, label='Previsão')
+    ax.set_xlabel('Data')
+    ax.set_ylabel('Valor Total')
+    ax.legend()
     ax.set_title('Comparação entre Valor Real e Previsão')
     st.pyplot(fig)
 
@@ -481,6 +491,4 @@ st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para v
 st.sidebar.write("4. **Informações por Código do Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
 st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
 st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning.")
-
-
 
