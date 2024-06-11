@@ -181,14 +181,30 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     st.write(f'R² Score: {r2}')
 
     st.write("Visualizando as previsões de vendas futuras...")
+
+    # Melhoria da Visualização
     fig, ax = plt.subplots()
-    ax.plot(range(len(y_test)), y_test, label='Valor Real')
-    ax.plot(range(len(y_pred)), y_pred, label='Previsão')
-    ax.set_xlabel('Índice')
-    ax.set_ylabel('Valor Total')
+
+    # Criando um eixo X com os valores reais do eixo X 
+    # (neste caso, o índice dos dados de teste) 
+    # e ajustando o eixo Y para melhor visualização
+    ax.plot(range(len(y_test)), y_test, label='Valor Real', color='blue', linestyle='-', marker='o')
+    ax.plot(range(len(y_pred)), y_pred, label='Previsão', color='red', linestyle='-', marker='x')
+    ax.set_xlabel('Índice das Transações de Teste')  # Eixo X agora com significado
+    ax.set_ylabel('Valor Total (Normalizado)')  # Eixo Y com a informação da normalização
     ax.legend()
-    ax.set_title('Previsões de Vendas')
+    ax.set_title('Previsões de Vendas vs. Valores Reais') 
     st.pyplot(fig)
+
+    # Informações Adicionais sobre o Modelo
+    st.write("## Informações sobre o Modelo:")
+    st.write("O modelo de regressão linear foi treinado usando as seguintes features:")
+    st.write("- Quantidade")
+    st.write("- Mês")
+    st.write("- Ano")
+    st.write("- Dia da Semana")
+    st.write("- Categoria do Produto (codificada com one-hot encoding)")
+    st.write("O modelo foi treinado com 80% dos dados e testado com 20% dos dados.")
 
     return model
 
