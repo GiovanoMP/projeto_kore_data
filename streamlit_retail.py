@@ -151,54 +151,6 @@ def analisar_produtos(clientes, descricao):
     st.dataframe(produtos_mais_comprados)
 
 # ----------------------------------------------------------------------------
-import streamlit as st
-import pandas as pd
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-from xgboost import XGBRegressor
-import matplotlib.pyplot as plt
-
-# ----------------------------------------------------------------------------
-# Configuração da Página
-st.set_page_config(layout="wide")
-st.title('Relatório de Vendas e Segmentação de Clientes')
-
-# ----------------------------------------------------------------------------
-# URLs dos arquivos no GitHub
-base_url = 'https://raw.githubusercontent.com/GiovanoMP/projeto_kore_data/main/'
-url_clientes = base_url + 'clientes.csv'
-url_itens_fatura = base_url + 'itens_fatura.csv'
-url_produtos = base_url + 'produtos.csv'
-url_segmentacao = base_url + 'df_treinamento_reduzido.csv'
-
-# ----------------------------------------------------------------------------
-# Carregar os DataFrames
-clientes = pd.read_csv(url_clientes)
-itens_fatura = pd.read_csv(url_itens_fatura)
-produtos = pd.read_csv(url_produtos)
-segmentacao = pd.read_csv(url_segmentacao)
-
-# ----------------------------------------------------------------------------
-# Preparação de Dados
-
-# Converter a coluna 'DataFatura' para datetime
-itens_fatura['DataFatura'] = pd.to_datetime(itens_fatura['DataFatura'], errors='coerce')
-
-# Filtrar registros com datas válidas
-itens_fatura = itens_fatura.dropna(subset=['DataFatura'])
-
-# Garantir que os nomes das colunas estejam corretos
-clientes.rename(columns=lambda x: x.strip(), inplace=True)
-itens_fatura.rename(columns=lambda x: x.strip(), inplace=True)
-produtos.rename(columns=lambda x: x.strip(), inplace=True)
-segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
-
-# Verificar se a coluna 'Categoria' existe em itens_fatura e adicionar se necessário
-if 'Categoria' not in itens_fatura.columns:
-    itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
-
-# ----------------------------------------------------------------------------
 # Funções de Previsão de Vendas
 
 def preprocessar_dados(df):
@@ -235,8 +187,48 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
             'subsample': [0.5, 0.7, 1.0],
             'colsample_bytree': [0.5, 0.7, 1.0]
         }
-        search = RandomizedSearchCV(modelo, param_grid, n_iter
+        search = RandomizedSearchCV(modelo, param_grid, n_iter=10, cv=5, scoring='neg_mean_squared_error', random_state=42)
+        search.fit(X_train, y_train)
+        modelo = search.best_estimator_
 
+    st.write("Fazendo a previsão...")
+    y_pred = modelo.predict(X_test)
+
+    st.write("Avaliando o modelo...")
+    r2 = r2_score(y_test, y_pred)
+    rmse = mean_squared_error(y_test, y_pred, squared=False)
+    mae = mean_absolute_error(y_test, y_pred)
+
+    st.write(f'R²: {r2:.2f}')
+    st.write(f'RMSE: {rmse:.2f}')
+    st.write(f'MAE: {mae:.2f}')
+
+    st.write("Visualizando os resultados da previsão...")
+    fig, ax = plt.subplots()
+    ax.plot(range(len(y_test)), y_test, label='Valor Real')
+    ax.plot(range(len(y_pred)), y_pred, label='Previsão')
+    ax.set_xlabel('Índice')
+    ax.set_ylabel('Valor Total')
+    ax.legend()
+    ax.set_title('Comparação entre Valor Real e Previsão')
+    st.pyplot(fig)
+
+    fig, ax = plt.subplots()
+    ax.scatter(y_test, y_test - y_pred)
+    ax.axhline(y=0, color='r', linestyle='-')
+    ax.set_xlabel('Valor Real')
+    ax.set_ylabel('Resíduo')
+    ax.set_title('Gráfico de Resíduos')
+    st.pyplot(fig)
+
+    return modelo
+
+# ----------------------------------------------------------------------------
+# Interface do Streamlit
+
+# Menu lateral
+st.sidebar.header('Menu')
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
@@ -537,7 +529,7 @@ elif opcao == 'Previsão de Vendas':
 
     if st.button('Prever Vendas'):
         # Treinar o modelo XGBoost e fazer a previsão
-        prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
+        modelo_treinado = prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
 
 # Instruções para uso:
 st.sidebar.write("### Instruções para uso:")
@@ -547,3 +539,4 @@ st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para v
 st.sidebar.write("4. **Informações por Código do Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
 st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
 st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.")
+
