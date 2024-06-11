@@ -185,15 +185,16 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     # Melhoria da Visualização
     fig, ax = plt.subplots()
 
-    # Criando um eixo X com os valores reais do eixo X 
-    # (neste caso, o índice dos dados de teste) 
-    # e ajustando o eixo Y para melhor visualização
-    ax.plot(range(len(y_test)), y_test, label='Valor Real', color='blue', linestyle='-', marker='o')
-    ax.plot(range(len(y_pred)), y_pred, label='Previsão', color='red', linestyle='-', marker='x')
-    ax.set_xlabel('Índice das Transações de Teste')  # Eixo X agora com significado
-    ax.set_ylabel('Valor Total (Normalizado)')  # Eixo Y com a informação da normalização
+    # Extraindo os dias do mês dos dados de teste
+    dias_mes = X_test[:, 1].astype(int)  # Índice 1 corresponde à coluna 'Mes'
+
+    # Criando o gráfico de linhas
+    ax.plot(dias_mes, y_test, label='Valor Real', color='blue', linestyle='-', marker='o')
+    ax.plot(dias_mes, y_pred, label='Previsão', color='red', linestyle='-', marker='x')
+    ax.set_xlabel('Dia do Mês')
+    ax.set_ylabel('Valor Total (Normalizado)')
     ax.legend()
-    ax.set_title('Previsões de Vendas vs. Valores Reais') 
+    ax.set_title('Previsões de Vendas vs. Valores Reais')
     st.pyplot(fig)
 
     # Informações Adicionais sobre o Modelo
