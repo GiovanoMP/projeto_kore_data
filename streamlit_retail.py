@@ -123,17 +123,19 @@ def analisar_produtos(clientes, descricao):
     produtos_mais_comprados.reset_index(inplace=True)
     st.write(f"Produtos mais comprados por {descricao}:")
     st.dataframe(produtos_mais_comprados)
+    st.write("Clientes:")
+    for cliente in clientes:
+        st.write(f"Cliente {cliente}")
 
 # Funções de Previsão de Vendas
 def preprocessar_dados(df):
     df['DataFatura'] = pd.to_datetime(df['DataFatura'])
     df['Ano'] = df['DataFatura'].dt.year
     df['Mes'] = df['DataFatura'].dt.month
-    df['Dia'] = df['DataFatura'].dt.day
     df['DiaSemana'] = df['DataFatura'].dt.dayofweek
     return df
 
-def prever_vendas(df_itens_fatura):
+def prever_vendas(df_itens_fatura, meses_a_prever):
     st.write("Pré-processando dados...")
     df_itens_fatura['DataFatura'] = pd.to_datetime(df_itens_fatura['DataFatura'], errors='coerce')
 
@@ -209,16 +211,16 @@ if opcao == 'Relatório de Vendas':
     categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
     categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
-    if categoria_preco != 'Nenhum':
-        itens_fatura_filtrado = itens_fatura.merge(produtos, on='CodigoProduto')
-        if categoria_preco == 'Barato (abaixo de 5,00)':
-            itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] < 5]
-        elif categoria_preco == 'Moderado (5,00 a 20,00)':
-            itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
-        elif categoria_preco == 'Caro (acima de 20,00)':
-            itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
-    else:
-        itens_fatura_filtrado = itens_fatura.copy()
+   if categoria_preco != 'Nenhum':
+    itens_fatura_filtrado = itens_fatura.merge(produtos, on='CodigoProduto')
+    if categoria_preco == 'Barato (abaixo de 5,00)':
+        itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] < 5]
+    elif categoria_preco == 'Moderado (5,00 a 20,00)':
+        itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
+    elif categoria_preco == 'Caro (acima de 20,00)':
+        itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
+else:
+    itens_fatura_filtrado = itens_fatura.copy()
 
     if pais_selecionado != 'Global':
         itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
@@ -288,6 +290,9 @@ elif opcao == 'Análise de Churn':
     st.write(f"Clientes que não compram há {dias_fim} a {dias_inicio} dias: {qtd_clientes_filtrados}")
     porcentagem_churn = (qtd_clientes_filtrados / quantidade_total_clientes) * 100
     st.write(f"Porcentagem de churn: {porcentagem_churn:.2f}%")
+    st.write("Clientes:")
+    for cliente in clientes_filtrados:
+        st.write(f"Cliente {cliente}")
     analisar_produtos(clientes_filtrados, f"clientes que não compram há {dias_fim} a {dias_inicio} dias")
 
 # Seção de Segmentação de Clientes
@@ -301,7 +306,7 @@ elif opcao == 'Segmentação de Clientes':
             clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_numero]
             clientes_ids = clientes_segmento['IDCliente'].unique()
             st.write(f"Clientes no {segmento_selecionado}:")
-            
+
             # Mostrar produtos recomendados para o segmento
             st.write("Produtos recomendados:")
             produtos_recomendados = clientes_segmento['ProdutosRecomendados'].iloc[0]
@@ -312,7 +317,7 @@ elif opcao == 'Segmentação de Clientes':
                     st.write(f"  - Produto: {produto}, Categoria: {categoria}")
                 else:
                     st.write(f"  - Produto: {produto}, Categoria: Não encontrada")
-            
+
             # Mostrar clientes
             st.write("Clientes:")
             for cliente in clientes_ids:
@@ -420,8 +425,11 @@ elif opcao == 'Análises e Insights':
 # Seção de Previsão de Vendas
 elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
+    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
     if st.button('Prever Vendas'):
-        modelo_treinado = prever_vendas(itens_fatura)
+        modelo_treinado = prever_vendas(itens_fatura, meses_a_prever)
         if modelo_treinado:
             st.write("Modelo treinado e previsões feitas com sucesso!")
+
+
 
