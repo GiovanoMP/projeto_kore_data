@@ -523,5 +523,43 @@ elif opcao == 'Análises e Insights':
 
     4. **Melhoria da Experiência do Cliente**: Garantir um processo de compra fácil e intuitivo, além de um serviço de atendimento ao cliente de alta qualidade, pode melhorar a satisfação do cliente. Investir em uma plataforma de e-commerce eficiente e treinamento de equipe de atendimento são passos importantes.
 
-    5. **Engajamento Pós-Compra**: Enviar emails de agradecimento, solicitar feedback e sugerir novos produtos com base nas compras anteriores pode manter os clientes engajados e incentivá-los a realizar novas compras. Este enga
+    5. **Engajamento Pós-Compra**: Enviar emails de agradecimento, solicitar feedback e sugerir novos produtos com base nas compras anteriores pode manter os clientes engajados e incentivá-los a realizar novas compras. Este engajamento contínuo ajuda a construir uma relação de longo prazo com os clientes.
+    """)
 
+    # Conclusão
+    st.header('Conclusão')
+    st.write("""
+    A análise dos dados de vendas revelou insights valiosos sobre o comportamento dos clientes e a performance dos produtos. Implementar as estratégias recomendadas pode ajudar a aumentar a receita, melhorar a satisfação do cliente e fortalecer a fidelidade dos clientes. Este relatório fornece uma base sólida para decisões estratégicas que podem impulsionar o crescimento e a rentabilidade da empresa.
+    """)
+
+# Seção de Previsão de Vendas
+elif opcao == 'Previsão de Vendas':
+    st.header('Previsão de Vendas com Machine Learning')
+
+    # Parâmetros para a previsão de vendas
+    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
+    modelo_treinado = None
+
+    if st.button('Prever Vendas'):
+        # Treinar o modelo XGBoost e fazer a previsão
+        modelo_treinado = prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
+# Instruções para uso:
+st.sidebar.write("### Instruções para uso:")
+st.sidebar.write("1. **Relatório de Vendas**: Utilize filtros para selecionar a data, categoria de preço, país e categoria de produto. Visualize indicadores de vendas, clientes e produtos, além de análises temporais.")
+st.sidebar.write("2. **Análise de Churn**: Use o filtro de churn para selecionar clientes que não compram há um certo período e visualizá-los.")
+st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para visualizar clientes e seus produtos recomendados.")
+st.sidebar.write("4. **Informações por Código do Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
+st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
+st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.") 
+
+# Seção de Previsão de Vendas (corrigida)
+elif opcao == 'Previsão de Vendas':
+    st.header('Previsão de Vendas com Machine Learning')
+
+    # Parâmetros para a previsão de vendas
+    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
+    modelo_treinado = None
+
+    if st.button('Prever Vendas'):
+        # Treinar o modelo XGBoost e fazer a previsão
+        modelo_treinado = prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
