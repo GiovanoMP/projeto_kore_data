@@ -509,18 +509,17 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     # Melhoria da Visualização
     fig, ax = plt.subplots()
 
-    # Ordenar os dados para garantir que as datas estão na ordem correta
-    datas_teste = pd.to_datetime(df_itens_fatura['DataFatura'].iloc[y_test.index]).reset_index(drop=True)
-    sorted_index = np.argsort(datas_teste)
+    # Agrupar os dados de teste por data
+    y_test_grouped = y_test.groupby(datas_teste).sum()
+    y_pred_grouped = pd.Series(y_pred, index=datas_teste).groupby(level=0).sum()
 
-    # Ordenar os valores de y_test e y_pred com base nas datas
-    datas_teste = datas_teste.iloc[sorted_index]
-    y_test_sorted = y_test.iloc[sorted_index]
-    y_pred_sorted = y_pred[sorted_index]
+    # Ordenar os dados agrupados por data
+    y_test_grouped = y_test_grouped.sort_index()
+    y_pred_grouped = y_pred_grouped.sort_index()
 
     # Criando o gráfico de linhas
-    ax.plot(datas_teste, y_test_sorted, label='Valor Real', color='blue', linestyle='-', marker='o')
-    ax.plot(datas_teste, y_pred_sorted, label='Previsão', color='red', linestyle='-', marker='x')
+    ax.plot(y_test_grouped.index, y_test_grouped, label='Valor Real', color='blue', linestyle='-', marker='o')
+    ax.plot(y_pred_grouped.index, y_pred_grouped, label='Previsão', color='red', linestyle='-', marker='x')
     ax.set_xlabel('Data')
     ax.set_ylabel('Valor Total')
     ax.legend()
@@ -539,3 +538,4 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     st.write("O modelo foi treinado com 80% dos dados e testado com 20% dos dados.")
 
     return model
+
