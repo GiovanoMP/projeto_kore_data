@@ -563,3 +563,31 @@ elif opcao == 'Previsão de Vendas':
     if st.button('Prever Vendas'):
         # Treinar o modelo XGBoost e fazer a previsão
         modelo_treinado = prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
+
+        if modelo_treinado is not None:  # Exibe resultados apenas se a previsão foi realizada
+            # Avaliar o modelo
+            r2 = r2_score(y_test, y_pred)
+            rmse = mean_squared_error(y_test, y_pred, squared=False)
+            mae = mean_absolute_error(y_test, y_pred)
+
+            st.write(f'R²: {r2:.2f}')
+            st.write(f'RMSE: {rmse:.2f}')
+            st.write(f'MAE: {mae:.2f}')
+
+            # Visualizar os resultados da previsão
+            fig, ax = plt.subplots()
+            ax.plot(y_test.index, y_test, label='Valor Real')
+            ax.plot(y_test.index, y_pred, label='Previsão')
+            ax.set_xlabel('Data')
+            ax.set_ylabel('Valor Total')
+            ax.legend()
+            ax.set_title('Comparação entre Valor Real e Previsão')
+            st.pyplot(fig)
+
+            fig, ax = plt.subplots()
+            ax.scatter(y_test, y_test - y_pred)
+            ax.axhline(y=0, color='r', linestyle='-')
+            ax.set_xlabel('Valor Real')
+            ax.set_ylabel('Resíduo')
+            ax.set_title('Gráfico de Resíduos')
+            st.pyplot(fig)
