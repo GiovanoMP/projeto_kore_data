@@ -6,7 +6,15 @@ from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from xgboost import XGBRegressor
 import matplotlib.pyplot as plt
 import numpy as np
+from datetime import timedelta
 
+# ----------------------------------------------------------------------------
+# Importações e Configuração
+
+st.set_page_config(layout="wide")
+st.title('Relatório de Vendas e Segmentação de Clientes')
+
+# ----------------------------------------------------------------------------
 # URLs dos arquivos no GitHub
 base_url = 'https://raw.githubusercontent.com/GiovanoMP/projeto_kore_data/main/'
 url_clientes = base_url + 'clientes.csv'
@@ -14,11 +22,16 @@ url_itens_fatura = base_url + 'itens_fatura.csv'
 url_produtos = base_url + 'produtos.csv'
 url_segmentacao = base_url + 'df_treinamento_reduzido.csv'
 
-# Carregar os dataframes
+# ----------------------------------------------------------------------------
+# Carregar os DataFrames
+
 clientes = pd.read_csv(url_clientes)
 itens_fatura = pd.read_csv(url_itens_fatura)
 produtos = pd.read_csv(url_produtos)
 segmentacao = pd.read_csv(url_segmentacao)
+
+# ----------------------------------------------------------------------------
+# Preparação de Dados
 
 # Converter a coluna 'DataFatura' para datetime
 itens_fatura['DataFatura'] = pd.to_datetime(itens_fatura['DataFatura'], errors='coerce')
@@ -36,7 +49,9 @@ segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
 if 'Categoria' not in itens_fatura.columns:
     itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
 
-# Funções auxiliares para calcular os indicadores
+# ----------------------------------------------------------------------------
+# Funções de Análise
+
 def calcular_receita_total(itens_fatura):
     return itens_fatura['ValorTotal'].sum()
 
@@ -104,8 +119,112 @@ def calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia):
     ultima_compra['DiasDesdeUltimaCompra'] = (data_referencia - ultima_compra['DataFatura']).dt.days
     return ultima_compra[['IDCliente', 'DiasDesdeUltimaCompra']]
 
-# Título do app
-st.title('Relatório de Vendas e Segmentação de Clientes')
+# ----------------------------------------------------------------------------
+# Funções de Análise de Churn
+
+def filtrar_clientes_por_intervalo(df, dias_inicio, dias_fim, ultima_data):
+    data_inicio = ultima_data - timedelta(days=dias_inicio)
+    data_fim = ultima_data - timedelta(days=dias_fim)
+    clientes_inativos = df.groupby('IDCliente').filter(
+        lambda x: x['DataFatura'].max() <= data_inicio and x['DataFatura'].max() > data_fim
+    )
+    return clientes_inativos['IDCliente'].unique()
+
+def analisar_produtos(clientes, descricao):
+    # Filtrar transações desses clientes
+    transacoes = itens_fatura[itens_fatura['IDCliente'].isin(clientes)]
+
+    # Analisar os produtos mais comprados pelos clientes
+    produtos_mais_comprados = transacoes.groupby('CodigoProduto')['Quantidade'].sum().sort_values(ascending=False).head(10)
+
+    # Verificar a relação com devoluções
+    produtos_devolucoes = transacoes[transacoes['Devolucao']].groupby('CodigoProduto')['Quantidade'].sum()
+    produtos_mais_comprados = produtos_mais_comprados.to_frame().join(produtos_devolucoes, rsuffix='_Devolucao').fillna(0)
+
+    # Renomear as colunas para clareza
+    produtos_mais_comprados.columns = ['Quantidade_Comprada', 'Quantidade_Devolvida']
+
+    # Calcular a proporção de devoluções
+    produtos_mais_comprados['Proporcao_Devolucao'] = produtos_mais_comprados['Quantidade_Devolvida'] / produtos_mais_comprados['Quantidade_Comprada']
+
+    # Exibir os resultados
+    produtos_mais_comprados.reset_index(inplace=True)
+    st.write(f"Produtos mais comprados por {descricao}:")
+    st.dataframe(produtos_mais_comprados)
+
+# ----------------------------------------------------------------------------
+# Funções de Previsão de Vendas
+
+def preprocessar_dados(df):
+    df['DataFatura'] = pd.to_datetime(df['DataFatura'])
+    df['Ano'] = df['DataFatura'].dt.year
+    df['Mes'] = df['DataFatura'].dt.month
+    df['Dia'] = df['DataFatura'].dt.day
+    df['DiaSemana'] = df['DataFatura'].dt.dayofweek
+    return df
+
+def prever_vendas(itens_fatura, meses_a_prever, modelo):
+    # Preparar os dados para a previsão
+    itens_fatura_previsao = itens_fatura.copy()
+    itens_fatura_previsao = preprocessar_dados(itens_fatura_previsao)
+    itens_fatura_previsao = itens_fatura_previsao.groupby(['Ano', 'Mes', 'Dia', 'DiaSemana'])['ValorTotal'].sum().reset_index()
+
+    # Separar os dados em treino e teste
+    X = itens_fatura_previsao[['Ano', 'Mes', 'Dia', 'DiaSemana']]
+    y = itens_fatura_previsao['ValorTotal']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Pré-processamento dos dados
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+
+    # Treinar o modelo XGBoost
+    if modelo is None:
+        modelo = XGBRegressor(random_state=42)
+        param_grid = {
+            'n_estimators': [100, 200, 300],
+            'learning_rate': [0.01, 0.1, 0.2],
+            'max_depth': [3, 5, 7],
+            'subsample': [0.5, 0.7, 1.0],
+            'colsample_bytree': [0.5, 0.7, 1.0]
+        }
+        search = RandomizedSearchCV(modelo, param_grid, n_iter=10, cv=5, scoring='neg_mean_squared_error', random_state=42)
+        search.fit(X_train, y_train)
+        modelo = search.best_estimator_
+
+    # Fazer a previsão
+    y_pred = modelo.predict(X_test)
+
+    # Avaliar o modelo
+    r2 = r2_score(y_test, y_pred)
+    rmse = mean_squared_error(y_test, y_pred, squared=False)
+    mae = mean_absolute_error(y_test, y_pred)
+
+    st.write(f'R²: {r2:.2f}')
+    st.write(f'RMSE: {rmse:.2f}')
+    st.write(f'MAE: {mae:.2f}')
+
+    # Visualizar os resultados da previsão
+    fig, ax = plt.subplots()
+    ax.plot(y_test.index, y_test, label='Valor Real')
+    ax.plot(y_test.index, y_pred, label='Previsão')
+    ax.set_xlabel('Data')
+    ax.set_ylabel('Valor Total')
+    ax.legend()
+    ax.set_title('Comparação entre Valor Real e Previsão')
+    st.pyplot(fig)
+
+    fig, ax = plt.subplots()
+    ax.scatter(y_test, y_test - y_pred)
+    ax.axhline(y=0, color='r', linestyle='-')
+    ax.set_xlabel('Valor Real')
+    ax.set_ylabel('Resíduo')
+    ax.set_title('Gráfico de Resíduos')
+    st.pyplot(fig)
+
+# ----------------------------------------------------------------------------
+# Interface do Streamlit
 
 # Menu lateral
 st.sidebar.header('Menu')
@@ -219,40 +338,40 @@ elif opcao == 'Análise de Churn':
     st.header('Análise de Churn')
 
     # Calcular o tempo desde a última compra
-    data_referencia = pd.to_datetime(itens_fatura['DataFatura'].max())
-    tempo_desde_ultima_compra = calcular_tempo_desde_ultima_compra(itens_fatura, data_referencia)
+    ultima_data = pd.to_datetime(itens_fatura['DataFatura'].max())
+    clientes_30_60_dias = filtrar_clientes_por_intervalo(itens_fatura, 30, 60, ultima_data)
+    clientes_61_90_dias = filtrar_clientes_por_intervalo(itens_fatura, 61, 90, ultima_data)
+    clientes_91_120_dias = filtrar_clientes_por_intervalo(itens_fatura, 91, 120, ultima_data)
+    clientes_121_360_dias = filtrar_clientes_por_intervalo(itens_fatura, 121, 360, ultima_data)
 
-    # Fazer o join com o dataframe de clientes para obter os nomes dos clientes
-    churn_data = tempo_desde_ultima_compra.merge(clientes, on='IDCliente')
+    # Resultados
+    clientes_inativos_resultado = {
+        "Clientes que não compram de 30 a 60 dias": len(clientes_30_60_dias),
+        "Clientes que não compram de 61 a 90 dias": len(clientes_61_90_dias),
+        "Clientes que não compram de 91 a 120 dias": len(clientes_91_120_dias),
+        "Clientes que não compram de 121 a 360 dias (Churn)": len(clientes_121_360_dias)
+    }
 
-    # Categorizar clientes por tempo desde a última compra
-    churn_30_59 = churn_data[(churn_data['DiasDesdeUltimaCompra'] >= 30) & (churn_data['DiasDesdeUltimaCompra'] <= 59)]
-    churn_60_89 = churn_data[(churn_data['DiasDesdeUltimaCompra'] >= 60) & (churn_data['DiasDesdeUltimaCompra'] <= 89)]
-    churn_90_119 = churn_data[(churn_data['DiasDesdeUltimaCompra'] >= 90) & (churn_data['DiasDesdeUltimaCompra'] <= 119)]
-    churn_120_180 = churn_data[(churn_data['DiasDesdeUltimaCompra'] >= 120) & (churn_data['DiasDesdeUltimaCompra'] <= 180)]
-    churn_181_plus = churn_data[churn_data['DiasDesdeUltimaCompra'] > 180]
+    # Exibir a quantidade total de clientes no dataframe de itens de fatura
+    quantidade_total_clientes = itens_fatura['IDCliente'].nunique()
 
-    # Seleção de categoria de churn
-    st.sidebar.header('Filtro de Churn')
-    opcao_churn = st.sidebar.radio('Selecione uma opção:', [
-        '30 a 59 dias', '60 a 89 dias', '90 a 119 dias', '120 a 180 dias (Churn)', 'Mais de 181 dias (Churn)'
-    ])
+    # Exibir os resultados
+    st.write(f"Quantidade total de clientes: {quantidade_total_clientes}\n")
+    for periodo, quantidade in clientes_inativos_resultado.items():
+        st.write(f"{periodo}: {quantidade} clientes")
 
-    if opcao_churn == '30 a 59 dias':
-        st.subheader('Clientes que não compram há 30 a 59 dias:')
-        st.dataframe(churn_30_59)
-    elif opcao_churn == '60 a 89 dias':
-        st.subheader('Clientes que não compram há 60 a 89 dias:')
-        st.dataframe(churn_60_89)
-    elif opcao_churn == '90 a 119 dias':
-        st.subheader('Clientes que não compram há 90 a 119 dias:')
-        st.dataframe(churn_90_119)
-    elif opcao_churn == '120 a 180 dias (Churn)':
-        st.subheader('Clientes que não compram há 120 a 180 dias (Churn):')
-        st.dataframe(churn_120_180)
-    elif opcao_churn == 'Mais de 181 dias (Churn)':
-        st.subheader('Clientes que não compram há mais de 181 dias (Churn):')
-        st.dataframe(churn_181_plus)
+    # Calcular a porcentagem de churn
+    qtd_clientes_churn = len(clientes_121_360_dias)
+    porcentagem_churn = (qtd_clientes_churn / quantidade_total_clientes) * 100
+
+    # Exibir a porcentagem de churn
+    st.write(f"Porcentagem de churn: {porcentagem_churn:.2f}%")
+
+    # Analisar produtos para diferentes intervalos de tempo
+    analisar_produtos(clientes_30_60_dias, "clientes que não compram de 30 a 60 dias")
+    analisar_produtos(clientes_61_90_dias, "clientes que não compram de 61 a 90 dias")
+    analisar_produtos(clientes_91_120_dias, "clientes que não compram de 91 a 120 dias")
+    analisar_produtos(clientes_121_360_dias, "clientes que não compram de 121 a 360 dias (Churn)")
 
 # Seção de Segmentação de Clientes
 elif opcao == 'Segmentação de Clientes':
@@ -404,91 +523,5 @@ elif opcao == 'Análises e Insights':
 
     4. **Melhoria da Experiência do Cliente**: Garantir um processo de compra fácil e intuitivo, além de um serviço de atendimento ao cliente de alta qualidade, pode melhorar a satisfação do cliente. Investir em uma plataforma de e-commerce eficiente e treinamento de equipe de atendimento são passos importantes.
 
-    5. **Engajamento Pós-Compra**: Enviar emails de agradecimento, solicitar feedback e sugerir novos produtos com base nas compras anteriores pode manter os clientes engajados e incentivá-los a realizar novas compras. Este engajamento contínuo ajuda a construir uma relação de longo prazo com os clientes.
-    """)
-
-    # Conclusão
-    st.header('Conclusão')
-    st.write("""
-    A análise dos dados de vendas revelou insights valiosos sobre o comportamento dos clientes e a performance dos produtos. Implementar as estratégias recomendadas pode ajudar a aumentar a receita, melhorar a satisfação do cliente e fortalecer a fidelidade dos clientes. Este relatório fornece uma base sólida para decisões estratégicas que podem impulsionar o crescimento e a rentabilidade da empresa.
-    """)
-
-# Seção de Previsão de Vendas
-elif opcao == 'Previsão de Vendas':
-    st.header('Previsão de Vendas com Machine Learning')
-
-    # Função para preprocessar dados
-    def preprocessar_dados(df):
-        df['DataFatura'] = pd.to_datetime(df['DataFatura'])
-        df['Ano'] = df['DataFatura'].dt.year
-        df['Mes'] = df['DataFatura'].dt.month
-        df['Dia'] = df['DataFatura'].dt.day
-        df['DiaSemana'] = df['DataFatura'].dt.dayofweek
-        return df
-
-    # Preparar os dados para a previsão
-    itens_fatura_previsao = itens_fatura.copy()
-    itens_fatura_previsao = preprocessar_dados(itens_fatura_previsao)
-    itens_fatura_previsao = itens_fatura_previsao.groupby(['Ano', 'Mes', 'Dia', 'DiaSemana'])['ValorTotal'].sum().reset_index()
-
-    # Separar os dados em treino e teste
-    X = itens_fatura_previsao[['Ano', 'Mes', 'Dia', 'DiaSemana']]
-    y = itens_fatura_previsao['ValorTotal']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Pré-processamento dos dados
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
-
-    # Treinar o modelo XGBoost
-    modelo_xgboost = XGBRegressor(random_state=42)
-    param_grid = {
-        'n_estimators': [100, 200, 300],
-        'learning_rate': [0.01, 0.1, 0.2],
-        'max_depth': [3, 5, 7],
-        'subsample': [0.5, 0.7, 1.0],
-        'colsample_bytree': [0.5, 0.7, 1.0]
-    }
-    search = RandomizedSearchCV(modelo_xgboost, param_grid, n_iter=10, cv=5, scoring='neg_mean_squared_error', random_state=42)
-    search.fit(X_train, y_train)
-
-    # Fazer a previsão
-    y_pred = search.best_estimator_.predict(X_test)
-
-    # Avaliar o modelo
-    r2 = r2_score(y_test, y_pred)
-    rmse = mean_squared_error(y_test, y_pred, squared=False)
-    mae = mean_absolute_error(y_test, y_pred)
-
-    st.write(f'R²: {r2:.2f}')
-    st.write(f'RMSE: {rmse:.2f}')
-    st.write(f'MAE: {mae:.2f}')
-
-    # Visualizar os resultados da previsão
-    fig, ax = plt.subplots()
-    ax.plot(y_test.index, y_test, label='Valor Real')
-    ax.plot(y_test.index, y_pred, label='Previsão')
-    ax.set_xlabel('Data')
-    ax.set_ylabel('Valor Total')
-    ax.legend()
-    ax.set_title('Comparação entre Valor Real e Previsão')
-    st.pyplot(fig)
-
-    fig, ax = plt.subplots()
-    ax.scatter(y_test, y_test - y_pred)
-    ax.axhline(y=0, color='r', linestyle='-')
-    ax.set_xlabel('Valor Real')
-    ax.set_ylabel('Resíduo')
-    ax.set_title('Gráfico de Resíduos')
-    st.pyplot(fig)
-
-# Instruções para uso:
-st.sidebar.write("### Instruções para uso:")
-st.sidebar.write("1. **Relatório de Vendas**: Utilize filtros para selecionar a data, categoria de preço, país e categoria de produto. Visualize indicadores de vendas, clientes e produtos, além de análises temporais.")
-st.sidebar.write("2. **Análise de Churn**: Use o filtro de churn para selecionar clientes que não compram há um certo período e visualizá-los.")
-st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para visualizar clientes e seus produtos recomendados.")
-st.sidebar.write("4. **Informações por Código do Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
-st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
-st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning.")
+    5. **Engajamento Pós-Compra**: Enviar emails de agradecimento, solicitar feedback e sugerir novos produtos com base nas compras anteriores pode manter os clientes engajados e incentivá-los a realizar novas compras. Este enga
 
