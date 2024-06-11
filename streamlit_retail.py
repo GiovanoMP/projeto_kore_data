@@ -501,42 +501,30 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     st.write(f'Mean Absolute Error: {mae}')
     st.write(f'R² Score: {r2}')
 
-    st.write("Visualizando as previsões de vendas futuras...")
+    # Criando uma tabela com as previsões e valores reais
+    previsoes_df = pd.DataFrame({
+        'Data': df_itens_fatura['DataFatura'].iloc[y_test.index],
+        'Valor Real': y_test,
+        'Previsão': y_pred
+    }).sort_values(by='Data')
 
-    # Extraindo as datas dos dados de teste
-    datas_teste = df_itens_fatura['DataFatura'].iloc[y_test.index].reset_index(drop=True)
-
-    # Melhoria da Visualização
-    fig, ax = plt.subplots()
-
-    # Agrupar os dados de teste por data
-    y_test_grouped = y_test.groupby(datas_teste).sum()
-    y_pred_grouped = pd.Series(y_pred, index=datas_teste).groupby(level=0).sum()
-
-    # Ordenar os dados agrupados por data
-    y_test_grouped = y_test_grouped.sort_index()
-    y_pred_grouped = y_pred_grouped.sort_index()
-
-    # Criando o gráfico de linhas suavizadas
-    ax.plot(y_test_grouped.index, y_test_grouped, label='Valor Real', color='blue', linestyle='-', marker='o')
-    ax.plot(y_pred_grouped.index, y_pred_grouped, label='Previsão', color='red', linestyle='-', marker='x')
-    ax.set_xlabel('Data')
-    ax.set_ylabel('Valor Total')
-    ax.legend()
-    ax.set_title('Previsões de Vendas vs. Valores Reais')
-    fig.autofmt_xdate()
-    st.pyplot(fig)
-
-    # Informações Adicionais sobre o Modelo
-    st.write("## Informações sobre o Modelo:")
-    st.write("O modelo de regressão linear foi treinado usando as seguintes features:")
-    st.write("- Quantidade")
-    st.write("- Mês")
-    st.write("- Ano")
-    st.write("- Dia da Semana")
-    st.write("- Categoria do Produto (codificada com one-hot encoding)")
-    st.write("O modelo foi treinado com 80% dos dados e testado com 20% dos dados.")
+    st.write("## Previsões de Vendas")
+    st.dataframe(previsoes_df)
 
     return model
+
+# Interface do Streamlit
+st.sidebar.header('Menu')
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas com Machine Learning'])
+
+# Seção de Previsão de Vendas
+if opcao == 'Previsão de Vendas com Machine Learning':
+    st.header('Previsão de Vendas com Machine Learning')
+    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
+    if st.button('Prever Vendas'):
+        df_previsao = itens_fatura.copy()
+        modelo_treinado = prever_vendas(df_previsao, meses_a_prever)
+        if modelo_treinado:
+            st.write("Modelo treinado e previsões feitas com sucesso!")
 
 
