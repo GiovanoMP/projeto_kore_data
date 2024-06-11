@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from xgboost import XGBRegressor
 import matplotlib.pyplot as plt
@@ -9,8 +9,7 @@ import numpy as np
 from datetime import timedelta
 
 # ----------------------------------------------------------------------------
-# Importações e Configuração
-
+# Configuração da Página
 st.set_page_config(layout="wide")
 st.title('Relatório de Vendas e Segmentação de Clientes')
 
@@ -24,7 +23,6 @@ url_segmentacao = base_url + 'df_treinamento_reduzido.csv'
 
 # ----------------------------------------------------------------------------
 # Carregar os DataFrames
-
 clientes = pd.read_csv(url_clientes)
 itens_fatura = pd.read_csv(url_itens_fatura)
 produtos = pd.read_csv(url_produtos)
@@ -163,7 +161,7 @@ def preprocessar_dados(df):
     df['DiaSemana'] = df['DataFatura'].dt.dayofweek
     return df
 
-def prever_vendas(itens_fatura, meses_a_prever, modelo):
+def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     # Preparar os dados para a previsão
     itens_fatura_previsao = itens_fatura.copy()
     itens_fatura_previsao = preprocessar_dados(itens_fatura_previsao)
@@ -337,41 +335,28 @@ if opcao == 'Relatório de Vendas':
 elif opcao == 'Análise de Churn':
     st.header('Análise de Churn')
 
+    # Seleção do intervalo de dias sem compras
+    st.sidebar.header('Filtro de Churn')
+    dias_inicio = st.sidebar.number_input('Dias Início', min_value=1, max_value=360, value=30)
+    dias_fim = st.sidebar.number_input('Dias Fim', min_value=1, max_value=360, value=60)
+
     # Calcular o tempo desde a última compra
     ultima_data = pd.to_datetime(itens_fatura['DataFatura'].max())
-    clientes_30_60_dias = filtrar_clientes_por_intervalo(itens_fatura, 30, 60, ultima_data)
-    clientes_61_90_dias = filtrar_clientes_por_intervalo(itens_fatura, 61, 90, ultima_data)
-    clientes_91_120_dias = filtrar_clientes_por_intervalo(itens_fatura, 91, 120, ultima_data)
-    clientes_121_360_dias = filtrar_clientes_por_intervalo(itens_fatura, 121, 360, ultima_data)
-
-    # Resultados
-    clientes_inativos_resultado = {
-        "Clientes que não compram de 30 a 60 dias": len(clientes_30_60_dias),
-        "Clientes que não compram de 61 a 90 dias": len(clientes_61_90_dias),
-        "Clientes que não compram de 91 a 120 dias": len(clientes_91_120_dias),
-        "Clientes que não compram de 121 a 360 dias (Churn)": len(clientes_121_360_dias)
-    }
+    clientes_filtrados = filtrar_clientes_por_intervalo(itens_fatura, dias_inicio, dias_fim, ultima_data)
 
     # Exibir a quantidade total de clientes no dataframe de itens de fatura
     quantidade_total_clientes = itens_fatura['IDCliente'].nunique()
+    qtd_clientes_filtrados = len(clientes_filtrados)
 
-    # Exibir os resultados
-    st.write(f"Quantidade total de clientes: {quantidade_total_clientes}\n")
-    for periodo, quantidade in clientes_inativos_resultado.items():
-        st.write(f"{periodo}: {quantidade} clientes")
+    st.write(f"Quantidade total de clientes: {quantidade_total_clientes}")
+    st.write(f"Clientes que não compram há {dias_fim} a {dias_inicio} dias: {qtd_clientes_filtrados}")
 
     # Calcular a porcentagem de churn
-    qtd_clientes_churn = len(clientes_121_360_dias)
-    porcentagem_churn = (qtd_clientes_churn / quantidade_total_clientes) * 100
-
-    # Exibir a porcentagem de churn
+    porcentagem_churn = (qtd_clientes_filtrados / quantidade_total_clientes) * 100
     st.write(f"Porcentagem de churn: {porcentagem_churn:.2f}%")
 
-    # Analisar produtos para diferentes intervalos de tempo
-    analisar_produtos(clientes_30_60_dias, "clientes que não compram de 30 a 60 dias")
-    analisar_produtos(clientes_61_90_dias, "clientes que não compram de 61 a 90 dias")
-    analisar_produtos(clientes_91_120_dias, "clientes que não compram de 91 a 120 dias")
-    analisar_produtos(clientes_121_360_dias, "clientes que não compram de 121 a 360 dias (Churn)")
+    # Analisar produtos para o intervalo de tempo selecionado
+    analisar_produtos(clientes_filtrados, f"clientes que não compram há {dias_fim} a {dias_inicio} dias")
 
 # Seção de Segmentação de Clientes
 elif opcao == 'Segmentação de Clientes':
@@ -542,35 +527,7 @@ elif opcao == 'Previsão de Vendas':
 
     if st.button('Prever Vendas'):
         # Treinar o modelo XGBoost e fazer a previsão
-        modelo_treinado = prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
-
-        if modelo_treinado is not None:  # Exibe resultados apenas se a previsão foi realizada
-            # Avaliar o modelo
-            r2 = r2_score(y_test, y_pred)
-            rmse = mean_squared_error(y_test, y_pred, squared=False)
-            mae = mean_absolute_error(y_test, y_pred)
-
-            st.write(f'R²: {r2:.2f}')
-            st.write(f'RMSE: {rmse:.2f}')
-            st.write(f'MAE: {mae:.2f}')
-
-            # Visualizar os resultados da previsão
-            fig, ax = plt.subplots()
-            ax.plot(y_test.index, y_test, label='Valor Real')
-            ax.plot(y_test.index, y_pred, label='Previsão')
-            ax.set_xlabel('Data')
-            ax.set_ylabel('Valor Total')
-            ax.legend()
-            ax.set_title('Comparação entre Valor Real e Previsão')
-            st.pyplot(fig)
-
-            fig, ax = plt.subplots()
-            ax.scatter(y_test, y_test - y_pred)
-            ax.axhline(y=0, color='r', linestyle='-')
-            ax.set_xlabel('Valor Real')
-            ax.set_ylabel('Resíduo')
-            ax.set_title('Gráfico de Resíduos')
-            st.pyplot(fig)
+        prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
 
 # Instruções para uso:
 st.sidebar.write("### Instruções para uso:")
