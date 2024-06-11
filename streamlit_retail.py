@@ -163,14 +163,14 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
 
     # Previsões a partir da última data do dataframe
     ultima_data = df_itens_fatura['DataFatura'].max()
-    datas_futuras = [ultima_data + timedelta(days=30 * i) for i in range(1, meses_a_prever + 1)]
+    datas_futuras = [ultima_data + timedelta(days=i) for i in range(1, meses_a_prever * 30 + 1)]
 
     # Gerar features para as datas futuras
     futuras_features = pd.DataFrame({
         'Quantidade': [0] * len(datas_futuras),
         'Mes': [data.month for data in datas_futuras],
         'Ano': [data.year for data in datas_futuras],
-        'DiaSemana': [data.weekday() for data in datas_futuras],
+        'DiaSemana': [data.dayofweek for data in datas_futuras],
         'Categoria': [''] * len(datas_futuras)  # Categoria vazia, ajustar conforme necessário
     })
 
