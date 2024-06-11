@@ -74,6 +74,8 @@ def calcular_clientes_unicos(itens_fatura):
     return itens_fatura['IDCliente'].nunique()
 
 def calcular_top_clientes(itens_fatura, n=100):
+    top_clientes = itens_fatura.groupby('IDCliente')['ValorTotal'].sum().nlargest
+
     top_clientes = itens_fatura.groupby('IDCliente')['ValorTotal'].sum().nlargest(n).reset_index()
     top_clientes['IDCliente'] = top_clientes['IDCliente'].astype(str)
     return top_clientes
@@ -162,8 +164,6 @@ def preprocessar_dados(df):
     return df
 
 def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
-    global y_test, y_pred  # Declarando variáveis globais para acesso dentro da função
-
     st.write("Pré-processando dados...")
     itens_fatura_previsao = itens_fatura.copy()
     itens_fatura_previsao = preprocessar_dados(itens_fatura_previsao)
@@ -205,7 +205,8 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
 
     st.write("Visualizando os resultados da previsão...")
     fig, ax = plt.subplots()
-    ax.plot(range(len(y_test)), y_test, label='Valor Real')
+    ax.plot(range
+
     ax.plot(range(len(y_pred)), y_pred, label='Previsão')
     ax.set_xlabel('Meses')
     ax.set_ylabel('Valor Total em Vendas')
@@ -523,26 +524,6 @@ elif opcao == 'Previsão de Vendas':
         # Treinar o modelo XGBoost e fazer a previsão
         modelo_treinado = prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
 
-        if modelo_treinado is not None:  # Exibe resultados apenas se a previsão foi realizada
-            # Avaliar o modelo
-            r2 = r2_score(y_test, y_pred)
-            rmse = mean_squared_error(y_test, y_pred, squared=False)
-            mae = mean_absolute_error(y_test, y_pred)
-
-            st.write(f'R²: {r2:.2f}')
-            st.write(f'RMSE: {rmse:.2f}')
-            st.write(f'MAE: {mae:.2f}')
-
-            # Visualizar os resultados da previsão
-            fig, ax = plt.subplots()
-            ax.plot(range(len(y_test)), y_test, label='Valor Real')
-            ax.plot(range(len(y_pred)), y_pred, label='Previsão')
-            ax.set_xlabel('Meses')
-            ax.set_ylabel('Valor Total em Vendas')
-            ax.legend()
-            ax.set_title('Previsão de Vendas Mensais')
-            st.pyplot(fig)
-
 # Instruções para uso:
 st.sidebar.write("### Instruções para uso:")
 st.sidebar.write("1. **Relatório de Vendas**: Utilize filtros para selecionar a data, categoria de preço, país e categoria de produto. Visualize indicadores de vendas, clientes e produtos, além de análises temporais.")
@@ -550,5 +531,6 @@ st.sidebar.write("2. **Análise de Churn**: Use o filtro de churn para seleciona
 st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para visualizar clientes e seus produtos recomendados.")
 st.sidebar.write("4. **Informações por Código do Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
 st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
-st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em '
+st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.")
+
 
