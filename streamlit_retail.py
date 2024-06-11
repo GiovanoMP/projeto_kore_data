@@ -182,19 +182,20 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
 
     st.write("Visualizando as previsões de vendas futuras...")
 
+    # Extraindo as datas dos dados de teste
+    datas_teste = df_itens_fatura['DataFatura'].iloc[y_test.index].reset_index(drop=True)
+
     # Melhoria da Visualização
     fig, ax = plt.subplots()
 
-    # Extraindo os dias do mês dos dados de teste
-    dias_mes = X_test[:, 1].astype(int)  # Índice 1 corresponde à coluna 'Mes'
-
     # Criando o gráfico de linhas
-    ax.plot(dias_mes, y_test, label='Valor Real', color='blue', linestyle='-', marker='o')
-    ax.plot(dias_mes, y_pred, label='Previsão', color='red', linestyle='-', marker='x')
-    ax.set_xlabel('Dia do Mês')
-    ax.set_ylabel('Valor Total (Normalizado)')
+    ax.plot(datas_teste, y_test, label='Valor Real', color='blue', linestyle='-', marker='o')
+    ax.plot(datas_teste, y_pred, label='Previsão', color='red', linestyle='-', marker='x')
+    ax.set_xlabel('Data')
+    ax.set_ylabel('Valor Total')
     ax.legend()
     ax.set_title('Previsões de Vendas vs. Valores Reais')
+    fig.autofmt_xdate()
     st.pyplot(fig)
 
     # Informações Adicionais sobre o Modelo
@@ -396,7 +397,8 @@ elif opcao == 'Análises e Insights':
     """)
     st.subheader('Receita Mensal')
     st.write("""
-    A análise da receita mensal mostra um padrão sazonal claro, com picos de receita em determinados meses do ano, como novembro e dezembro, possivelmente devido às compras de final de ano. Observa-se que a receita em dezembro de 2011 foi a mais alta do período analisado, destacando a importância das promoções de fim de ano.
+    A análise da receita mensal mostra um padrão sazonal claro, com picos de receita em determinados meses do ano, como novembro e dezembro, possivelmente devido às compras de final de ano. Observa-se que a receita em dezembro de 2011 foi a mais alta do período analisado, destacando a
+    a importância das promoções de fim de ano.
     """)
     st.header('Análise de Produtos')
     st.subheader('Produtos Mais Vendidos')
@@ -454,3 +456,58 @@ elif opcao == 'Previsão de Vendas com Machine Learning':
         modelo_treinado = prever_vendas(df_previsao, meses_a_prever)
         if modelo_treinado:
             st.write("Modelo treinado e previsões feitas com sucesso!")
+def prever_vendas(df_itens_fatura, meses_a_prever):
+    st.write("Pré-processando dados...")
+    df_itens_fatura['DataFatura'] = pd.to_datetime(df_itens_fatura['DataFatura'], errors='coerce')
+
+    # Tratamento de valores ausentes
+    df_itens_fatura.fillna(0, inplace=True)
+
+    # Criação de features baseadas nas datas
+    df_itens_fatura['Mes'] = df_itens_fatura['DataFatura'].dt.month
+    df_itens_fatura['Ano'] = df_itens_fatura['DataFatura'].dt.year
+    df_itens_fatura['DiaSemana'] = df_itens_fatura['DataFatura'].dt.dayofweek
+
+    # Separar Features Numéricas e Categóricas
+    X_numeric = df_itens_fatura[['Quantidade', 'Mes', 'Ano', 'DiaSemana']]
+    X_categorical = df_itens_fatura[['Categoria']]
+
+    # Normalizar Features Numéricas
+    scaler = StandardScaler()
+    X_numeric = scaler.fit_transform(X_numeric)
+
+    # Codificar Features Categóricas (One-Hot Encoding)
+    encoder = OneHotEncoder(handle_unknown='ignore')
+    X_categorical_encoded = encoder.fit_transform(X_categorical).toarray()
+
+    # Combinar Features
+    X = np.concatenate((X_numeric, X_categorical_encoded), axis=1)
+    y = df_itens_fatura['ValorTotal']
+
+    # Divisão em treino e teste
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Modelo de Regressão Linear
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    # Previsões
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    st.write(f'Mean Squared Error: {mse}')
+    st.write(f'Mean Absolute Error: {mae}')
+    st.write(f'R² Score: {r2}')
+
+    st.write("Visualizando as previsões de vendas futuras...")
+
+    # Extraindo as datas dos dados de teste
+    datas_teste = df_itens_fatura['DataFatura'].iloc[y_test.index].reset_index(drop=True)
+
+    # Melhoria da Visualização
+    fig, ax = plt.subplots()
+
+    # Criando o gráfico de linhas
+    ax.plot(datas_teste, y
