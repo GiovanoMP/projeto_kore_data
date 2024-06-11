@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-from xgboost import XGBRegressor
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import timedelta
@@ -133,37 +133,42 @@ def preprocessar_dados(df):
     df['DiaSemana'] = df['DataFatura'].dt.dayofweek
     return df
 
-def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
+def prever_vendas(df_itens_fatura):
     st.write("Pré-processando dados...")
-    itens_fatura_previsao = itens_fatura.copy()
-    itens_fatura_previsao = preprocessar_dados(itens_fatura_previsao)
-    itens_fatura_previsao = itens_fatura_previsao.groupby(['Ano', 'Mes', 'Dia', 'DiaSemana'])['ValorTotal'].sum().reset_index()
+    df_itens_fatura['DataFatura'] = pd.to_datetime(df_itens_fatura['DataFatura'], errors='coerce')
 
-    st.write("Separando dados em treino e teste...")
-    X = itens_fatura_previsao[['Ano', 'Mes', 'Dia', 'DiaSemana']]
-    y = itens_fatura_previsao['ValorTotal']
+    # Tratamento de valores ausentes
+    df_itens_fatura.fillna(0, inplace=True)
+
+    # Criação de features baseadas nas datas
+    df_itens_fatura['Mes'] = df_itens_fatura['DataFatura'].dt.month
+    df_itens_fatura['Ano'] = df_itens_fatura['DataFatura'].dt.year
+    df_itens_fatura['DiaSemana'] = df_itens_fatura['DataFatura'].dt.dayofweek
+
+    # Normalização das variáveis numéricas
+    scaler = StandardScaler()
+    df_itens_fatura[['Quantidade', 'ValorTotal']] = scaler.fit_transform(df_itens_fatura[['Quantidade', 'ValorTotal']])
+
+    # Separação entre features e target
+    X = df_itens_fatura.drop(['NumeroFatura', 'CodigoProduto', 'DataFatura', 'IDCliente', 'Venda', 'Devolucao', 'ValorTotal'], axis=1)
+    y = df_itens_fatura['ValorTotal']
+
+    # Divisão em treino e teste
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    st.write("Pré-processando os dados...")
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
+    # Modelo de Regressão Linear
+    model = LinearRegression()
+    model.fit(X_train, y_train)
 
-    st.write("Treinando o modelo XGBoost...")
-    if modelo is None:
-        modelo = XGBRegressor(random_state=42)
-        modelo.fit(X_train, y_train)
-
-    y_pred = modelo.predict(X_test)
-
-    st.write("Avaliando o modelo...")
-    r2 = r2_score(y_test, y_pred)
-    rmse = mean_squared_error(y_test, y_pred, squared=False)
+    # Previsões
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
 
-    st.write(f'R²: {r2:.2f}')
-    st.write(f'RMSE: {rmse:.2f}')
-    st.write(f'MAE: {mae:.2f}')
+    st.write(f'Mean Squared Error: {mse}')
+    st.write(f'Mean Absolute Error: {mae}')
+    st.write(f'R² Score: {r2}')
 
     st.write("Visualizando as previsões de vendas futuras...")
     fig, ax = plt.subplots()
@@ -175,7 +180,7 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     ax.set_title('Previsões de Vendas')
     st.pyplot(fig)
 
-    return modelo
+    return model
 
 # Interface do Streamlit
 st.sidebar.header('Menu')
@@ -184,8 +189,8 @@ opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'An�
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
     st.sidebar.header('Filtro de Data')
-    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date())
-    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date())
+    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), format="DD/MM/YYYY")
+    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), format="DD/MM/YYYY")
 
     if start_date > end_date:
         st.sidebar.error('Erro: A data final deve ser posterior à data inicial.')
@@ -263,10 +268,19 @@ if opcao == 'Relatório de Vendas':
 # Seção de Análise de Churn
 elif opcao == 'Análise de Churn':
     st.header('Análise de Churn')
-    st.sidebar.header('Filtro de Churn')
-    dias_inicio = st.sidebar.number_input('Dias Início', min_value=1, max_value=360, value=30)
-    dias_fim = st.sidebar.number_input('Dias Fim', min_value=1, max_value=360, value=60)
     ultima_data = pd.to_datetime(itens_fatura['DataFatura'].max())
+
+    st.sidebar.header('Filtro de Churn')
+    intervalo = st.sidebar.selectbox('Selecione um intervalo de dias:', ['30-60 dias', '61-90 dias', '91-120 dias', '121-360 dias'])
+    if intervalo == '30-60 dias':
+        dias_inicio, dias_fim = 30, 60
+    elif intervalo == '61-90 dias':
+        dias_inicio, dias_fim = 61, 90
+    elif intervalo == '91-120 dias':
+        dias_inicio, dias_fim = 91, 120
+    elif intervalo == '121-360 dias':
+        dias_inicio, dias_fim = 121, 360
+
     clientes_filtrados = filtrar_clientes_por_intervalo(itens_fatura, dias_inicio, dias_fim, ultima_data)
     quantidade_total_clientes = itens_fatura['IDCliente'].nunique()
     qtd_clientes_filtrados = len(clientes_filtrados)
@@ -287,17 +301,22 @@ elif opcao == 'Segmentação de Clientes':
             clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_numero]
             clientes_ids = clientes_segmento['IDCliente'].unique()
             st.write(f"Clientes no {segmento_selecionado}:")
+            
+            # Mostrar produtos recomendados para o segmento
+            st.write("Produtos recomendados:")
+            produtos_recomendados = clientes_segmento['ProdutosRecomendados'].iloc[0]
+            for produto in eval(produtos_recomendados):
+                categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
+                if not categoria.empty:
+                    categoria = categoria.values[0]
+                    st.write(f"  - Produto: {produto}, Categoria: {categoria}")
+                else:
+                    st.write(f"  - Produto: {produto}, Categoria: Não encontrada")
+            
+            # Mostrar clientes
+            st.write("Clientes:")
             for cliente in clientes_ids:
-                st.write(f"Cliente {cliente}:")
-                produtos_recomendados = clientes_segmento[clientes_segmento['IDCliente'] == cliente]['ProdutosRecomendados'].values[0]
-                st.write("Produtos recomendados:")
-                for produto in eval(produtos_recomendados):
-                    categoria = produtos[produtos['CodigoProduto'] == str(produto)]['Categoria']
-                    if not categoria.empty:
-                        categoria = categoria.values[0]
-                        st.write(f"  - Produto: {produto}, Categoria: {categoria}")
-                    else:
-                        st.write(f"  - Produto: {produto}, Categoria: Não encontrada")
+                st.write(f"Cliente {cliente}")
 
 # Seção de Busca de Cliente
 elif opcao == 'Informações por Código do Cliente':
@@ -401,12 +420,8 @@ elif opcao == 'Análises e Insights':
 # Seção de Previsão de Vendas
 elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
-    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
-    modelo_treinado = None
     if st.button('Prever Vendas'):
-        modelo_treinado = prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
+        modelo_treinado = prever_vendas(itens_fatura)
         if modelo_treinado:
             st.write("Modelo treinado e previsões feitas com sucesso!")
 
-
-                                    
