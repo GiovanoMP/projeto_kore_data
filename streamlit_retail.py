@@ -201,12 +201,11 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     st.write(f'RMSE: {rmse:.2f}')
     st.write(f'MAE: {mae:.2f}')
 
-    # Mostrar tabela de previsões vs. valores reais
-    st.write("Previsões vs. Valores Reais:")
-    previsoes_df = pd.DataFrame({'Real': y_test, 'Previsão': y_pred})
-    st.dataframe(previsoes_df)
+    # Exibir previsões e valores reais
+    resultado_df = pd.DataFrame({'Real': y_test, 'Previsão': y_pred})
+    st.write("Previsões de Vendas:")
+    st.dataframe(resultado_df.head(10))
 
-    # Gráfico de comparação
     fig, ax = plt.subplots()
     ax.plot(range(len(y_test)), y_test, label='Valor Real')
     ax.plot(range(len(y_pred)), y_pred, label='Previsão')
@@ -216,15 +215,6 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     ax.set_title('Comparação entre Valor Real e Previsão')
     st.pyplot(fig)
 
-    # Gráfico de resíduos
-    fig, ax = plt.subplots()
-    ax.scatter(y_test, y_test - y_pred)
-    ax.axhline(y=0, color='r', linestyle='-')
-    ax.set_xlabel('Valor Real')
-    ax.set_ylabel('Resíduo')
-    ax.set_title('Gráfico de Resíduos')
-    st.pyplot(fig)
-
     return modelo
 
 # ----------------------------------------------------------------------------
@@ -232,7 +222,7 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
 
 # Menu lateral
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas'])
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas com Machine Learning'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
