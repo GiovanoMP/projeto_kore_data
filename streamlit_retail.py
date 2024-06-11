@@ -219,7 +219,7 @@ if opcao == 'Relatório de Vendas':
         itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
     elif categoria_preco == 'Caro (acima de 20,00)':
         itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
-else:
+    else:
     itens_fatura_filtrado = itens_fatura.copy()
 
     if pais_selecionado != 'Global':
