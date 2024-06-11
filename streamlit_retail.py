@@ -507,7 +507,27 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     datas_teste = df_itens_fatura['DataFatura'].iloc[y_test.index].reset_index(drop=True)
 
     # Melhoria da Visualização
+    # Melhoria da Visualização
     fig, ax = plt.subplots()
 
     # Criando o gráfico de linhas
-    ax.plot(datas_teste, y
+    ax.plot(datas_teste, y_test, label='Valor Real', color='blue', linestyle='-', marker='o')
+    ax.plot(datas_teste, y_pred, label='Previsão', color='red', linestyle='-', marker='x')
+    ax.set_xlabel('Data')
+    ax.set_ylabel('Valor Total')
+    ax.legend()
+    ax.set_title('Previsões de Vendas vs. Valores Reais')
+    fig.autofmt_xdate()
+    st.pyplot(fig)
+
+    # Informações Adicionais sobre o Modelo
+    st.write("## Informações sobre o Modelo:")
+    st.write("O modelo de regressão linear foi treinado usando as seguintes features:")
+    st.write("- Quantidade")
+    st.write("- Mês")
+    st.write("- Ano")
+    st.write("- Dia da Semana")
+    st.write("- Categoria do Produto (codificada com one-hot encoding)")
+    st.write("O modelo foi treinado com 80% dos dados e testado com 20% dos dados.")
+
+    return model
