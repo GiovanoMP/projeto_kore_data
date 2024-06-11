@@ -181,18 +181,20 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     if modelo is None:
         modelo = XGBRegressor(random_state=42)
         param_grid = {
-            'n_estimators': [100, 150],
-            'learning_rate': [0.01, 0.1],
-            'max_depth': [3, 5],
-            'subsample': [0.5, 0.7],
-            'colsample_bytree': [0.5, 0.7]
+            'n_estimators': [50, 100, 200],
+            'learning_rate': [0.01, 0.1, 0.2],
+            'max_depth': [3, 5, 7],
+            'subsample': [0.5, 0.7, 1.0],
+            'colsample_bytree': [0.5, 0.7, 1.0]
         }
         search = RandomizedSearchCV(modelo, param_grid, n_iter=5, cv=3, scoring='neg_mean_squared_error', random_state=42)
         search.fit(X_train, y_train)
         modelo = search.best_estimator_
 
+    st.write("Fazendo a previsão...")
     y_pred = modelo.predict(X_test)
 
+    st.write("Avaliando o modelo...")
     r2 = r2_score(y_test, y_pred)
     rmse = mean_squared_error(y_test, y_pred, squared=False)
     mae = mean_absolute_error(y_test, y_pred)
@@ -201,6 +203,7 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     st.write(f'RMSE: {rmse:.2f}')
     st.write(f'MAE: {mae:.2f}')
 
+    st.write("Visualizando os resultados da previsão...")
     fig, ax = plt.subplots()
     ax.plot(range(len(y_test)), y_test, label='Valor Real')
     ax.plot(range(len(y_pred)), y_pred, label='Previsão')
@@ -218,6 +221,11 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     ax.set_title('Gráfico de Resíduos')
     st.pyplot(fig)
 
+    # Exibir previsões numéricas
+    st.write("Previsões Numéricas:")
+    previsoes = pd.DataFrame({'Real': y_test, 'Previsão': y_pred})
+    st.dataframe(previsoes.head(20))
+
     return modelo
 
 # ----------------------------------------------------------------------------
@@ -225,7 +233,7 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
 
 # Menu lateral
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas'])
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas com Machine Learning'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
@@ -516,8 +524,8 @@ elif opcao == 'Análises e Insights':
     A análise dos dados de vendas revelou insights valiosos sobre o comportamento dos clientes e a performance dos produtos. Implementar as estratégias recomendadas pode ajudar a aumentar a receita, melhorar a satisfação do cliente e fortalecer a fidelidade dos clientes. Este relatório fornece uma base sólida para decisões estratégicas que podem impulsionar o crescimento e a rentabilidade da empresa.
     """)
 
-# Seção de Previsão de Vendas
-elif opcao == 'Previsão de Vendas':
+# Seção de Previsão de Vendas com Machine Learning
+elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
 
     # Parâmetros para a previsão de vendas
@@ -535,4 +543,5 @@ st.sidebar.write("2. **Análise de Churn**: Use o filtro de churn para seleciona
 st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para visualizar clientes e seus produtos recomendados.")
 st.sidebar.write("4. **Informações por Código do Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
 st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
-st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.")
+st.sidebar.write("6. **Previsão de Vendas com Machine Learning**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.")
+
