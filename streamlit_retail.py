@@ -151,55 +151,6 @@ def analisar_produtos(clientes, descricao):
     st.dataframe(produtos_mais_comprados)
 
 # ----------------------------------------------------------------------------
-import streamlit as st
-import pandas as pd
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-from xgboost import XGBRegressor
-import matplotlib.pyplot as plt
-import numpy as np
-
-# ----------------------------------------------------------------------------
-# Configuração da Página
-st.set_page_config(layout="wide")
-st.title('Relatório de Vendas e Previsão com Machine Learning')
-
-# ----------------------------------------------------------------------------
-# URLs dos arquivos no GitHub
-base_url = 'https://raw.githubusercontent.com/GiovanoMP/projeto_kore_data/main/'
-url_clientes = base_url + 'clientes.csv'
-url_itens_fatura = base_url + 'itens_fatura.csv'
-url_produtos = base_url + 'produtos.csv'
-url_segmentacao = base_url + 'df_treinamento_reduzido.csv'
-
-# ----------------------------------------------------------------------------
-# Carregar os DataFrames
-clientes = pd.read_csv(url_clientes)
-itens_fatura = pd.read_csv(url_itens_fatura)
-produtos = pd.read_csv(url_produtos)
-segmentacao = pd.read_csv(url_segmentacao)
-
-# ----------------------------------------------------------------------------
-# Preparação de Dados
-
-# Converter a coluna 'DataFatura' para datetime
-itens_fatura['DataFatura'] = pd.to_datetime(itens_fatura['DataFatura'], errors='coerce')
-
-# Filtrar registros com datas válidas
-itens_fatura = itens_fatura.dropna(subset=['DataFatura'])
-
-# Garantir que os nomes das colunas estejam corretos
-clientes.rename(columns=lambda x: x.strip(), inplace=True)
-itens_fatura.rename(columns=lambda x: x.strip(), inplace=True)
-produtos.rename(columns=lambda x: x.strip(), inplace=True)
-segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
-
-# Verificar se a coluna 'Categoria' existe em itens_fatura e adicionar se necessário
-if 'Categoria' not in itens_fatura.columns:
-    itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
-
-# ----------------------------------------------------------------------------
 # Funções de Previsão de Vendas
 
 def preprocessar_dados(df):
@@ -230,20 +181,18 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     if modelo is None:
         modelo = XGBRegressor(random_state=42)
         param_grid = {
-            'n_estimators': [100, 200, 300],
-            'learning_rate': [0.01, 0.1, 0.2],
-            'max_depth': [3, 5, 7],
-            'subsample': [0.5, 0.7, 1.0],
-            'colsample_bytree': [0.5, 0.7, 1.0]
+            'n_estimators': [100, 150],
+            'learning_rate': [0.01, 0.1],
+            'max_depth': [3, 5],
+            'subsample': [0.5, 0.7],
+            'colsample_bytree': [0.5, 0.7]
         }
-        search = RandomizedSearchCV(modelo, param_grid, n_iter=10, cv=3, scoring='neg_mean_squared_error', random_state=42)
+        search = RandomizedSearchCV(modelo, param_grid, n_iter=5, cv=3, scoring='neg_mean_squared_error', random_state=42)
         search.fit(X_train, y_train)
         modelo = search.best_estimator_
 
-    st.write("Fazendo a previsão...")
     y_pred = modelo.predict(X_test)
 
-    st.write("Avaliando o modelo...")
     r2 = r2_score(y_test, y_pred)
     rmse = mean_squared_error(y_test, y_pred, squared=False)
     mae = mean_absolute_error(y_test, y_pred)
@@ -252,20 +201,28 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     st.write(f'RMSE: {rmse:.2f}')
     st.write(f'MAE: {mae:.2f}')
 
-    # Exibir previsões
-    st.write("Comparação entre valores reais e previstos:")
+    # Mostrar tabela de previsões vs. valores reais
+    st.write("Previsões vs. Valores Reais:")
     previsoes_df = pd.DataFrame({'Real': y_test, 'Previsão': y_pred})
     st.dataframe(previsoes_df)
 
-    # Gráfico de previsões
-    st.write("Gráfico de Previsões:")
+    # Gráfico de comparação
     fig, ax = plt.subplots()
-    ax.plot(previsoes_df.index, previsoes_df['Real'], label='Valor Real', color='blue')
-    ax.plot(previsoes_df.index, previsoes_df['Previsão'], label='Previsão', color='orange')
+    ax.plot(range(len(y_test)), y_test, label='Valor Real')
+    ax.plot(range(len(y_pred)), y_pred, label='Previsão')
     ax.set_xlabel('Índice')
     ax.set_ylabel('Valor Total')
     ax.legend()
     ax.set_title('Comparação entre Valor Real e Previsão')
+    st.pyplot(fig)
+
+    # Gráfico de resíduos
+    fig, ax = plt.subplots()
+    ax.scatter(y_test, y_test - y_pred)
+    ax.axhline(y=0, color='r', linestyle='-')
+    ax.set_xlabel('Valor Real')
+    ax.set_ylabel('Resíduo')
+    ax.set_title('Gráfico de Resíduos')
     st.pyplot(fig)
 
     return modelo
@@ -275,24 +232,24 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
 
 # Menu lateral
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Previsão de Vendas com Machine Learning'])
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas'])
 
-# Seção de Previsão de Vendas
-if opcao == 'Previsão de Vendas com Machine Learning':
-    st.header('Previsão de Vendas com Machine Learning')
+# Seção de Relatório de Vendas
+if opcao == 'Relatório de Vendas':
+    # Seleção de datas para filtrar os dados
+    st.sidebar.header('Filtro de Data')
+    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date())
+    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date())
 
-    # Parâmetros para a previsão de vendas
-    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
-    modelo_treinado = None
+    if start_date > end_date:
+        st.sidebar.error('Erro: A data final deve ser posterior à data inicial.')
 
-    if st.button('Prever Vendas'):
-        # Treinar o modelo XGBoost e fazer a previsão
-        modelo_treinado = prever_vendas(itens_fatura, meses_a_prever, modelo_treinado)
-
-# Instruções para uso:
-st.sidebar.write("### Instruções para uso:")
-st.sidebar.write("1. **Previsão de Vendas com Machine Learning**: Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.")
-
+    # Seleção de categorias de preço com descrição
+    st.sidebar.header('Filtro de Categoria de Preço')
+    categoria_preco = st.sidebar.radio(
+        'Escolha uma Categoria de Preço:',
+        ['Nenhum', 'Barato (abaixo de 5,00)', 'Moderado (5,00 a 20,00)', 'Caro (acima de 20,00)']
+    )
 
     # Seleção de país
     st.sidebar.header('Filtro de País')
@@ -566,7 +523,7 @@ elif opcao == 'Análises e Insights':
     A análise dos dados de vendas revelou insights valiosos sobre o comportamento dos clientes e a performance dos produtos. Implementar as estratégias recomendadas pode ajudar a aumentar a receita, melhorar a satisfação do cliente e fortalecer a fidelidade dos clientes. Este relatório fornece uma base sólida para decisões estratégicas que podem impulsionar o crescimento e a rentabilidade da empresa.
     """)
 
-# Seção de Previsão de Vendas com Machine Learning
+# Seção de Previsão de Vendas
 elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
 
@@ -585,5 +542,5 @@ st.sidebar.write("2. **Análise de Churn**: Use o filtro de churn para seleciona
 st.sidebar.write("3. **Segmentação de Clientes**: Selecione um segmento para visualizar clientes e seus produtos recomendados.")
 st.sidebar.write("4. **Informações por Código do Cliente**: Digite o ID do cliente para visualizar informações detalhadas, incluindo país, valor total de compras e últimos produtos comprados.")
 st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das transações, comportamento de compra e estratégias recomendadas.")
-st.sidebar.write("6. **Previsão de Vendas com Machine Learning**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.")
+st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.")
 
