@@ -74,10 +74,8 @@ def calcular_clientes_unicos(itens_fatura):
     return itens_fatura['IDCliente'].nunique()
 
 def calcular_top_clientes(itens_fatura, n=100):
-    top_clientes = itens_fatura.groupby('IDCliente')['ValorTotal'].sum().nlargest
-
     top_clientes = itens_fatura.groupby('IDCliente')['ValorTotal'].sum().nlargest(n).reset_index()
-    top_clientes['IDCliente'] = top_clientes['IDCliente'].astype(str)
+    top_clientes['IDCliente'] = top_clientes['IDCliente'].astype(str) 
     return top_clientes
 
 def calcular_frequencia_compras(itens_fatura):
@@ -203,16 +201,18 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     st.write(f'RMSE: {rmse:.2f}')
     st.write(f'MAE: {mae:.2f}')
 
-    st.write("Visualizando os resultados da previsão...")
     fig, ax = plt.subplots()
-    ax.plot(range
-
-    ax.plot(range(len(y_pred)), y_pred, label='Previsão')
+    meses = range(1, len(y_pred) + 1)
+    ax.plot(meses, y_pred, label='Previsão')
     ax.set_xlabel('Meses')
     ax.set_ylabel('Valor Total em Vendas')
     ax.legend()
-    ax.set_title('Previsão de Vendas Mensais')
+    ax.set_title('Previsão de Vendas para os Próximos Meses')
     st.pyplot(fig)
+
+    # Mostrar produtos mais e menos vendidos
+    st.write("Produtos mais e menos vendidos previstos para os próximos meses:")
+    st.write("Esta funcionalidade será implementada em versões futuras.")
 
     return modelo
 
@@ -517,7 +517,7 @@ elif opcao == 'Previsão de Vendas':
     st.header('Previsão de Vendas com Machine Learning')
 
     # Parâmetros para a previsão de vendas
-    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 12, 3)
+    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
     modelo_treinado = None
 
     if st.button('Prever Vendas'):
