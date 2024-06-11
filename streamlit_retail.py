@@ -212,15 +212,15 @@ if opcao == 'Relatório de Vendas':
     categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
     if categoria_preco != 'Nenhum':
-    itens_fatura_filtrado = itens_fatura.merge(produtos, on='CodigoProduto')
-    if categoria_preco == 'Barato (abaixo de 5,00)':
-        itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] < 5]
-    elif categoria_preco == 'Moderado (5,00 a 20,00)':
-        itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
-    elif categoria_preco == 'Caro (acima de 20,00)':
-        itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
-else:
-    itens_fatura_filtrado = itens_fatura.copy()
+        itens_fatura_filtrado = itens_fatura.merge(produtos, on='CodigoProduto')
+        if categoria_preco == 'Barato (abaixo de 5,00)':
+            itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] < 5]
+        elif categoria_preco == 'Moderado (5,00 a 20,00)':
+            itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
+        elif categoria_preco == 'Caro (acima de 20,00)':
+            itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
+    else:
+        itens_fatura_filtrado = itens_fatura.copy()
 
     if pais_selecionado != 'Global':
         itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
@@ -430,6 +430,3 @@ elif opcao == 'Previsão de Vendas com Machine Learning':
         modelo_treinado = prever_vendas(itens_fatura, meses_a_prever)
         if modelo_treinado:
             st.write("Modelo treinado e previsões feitas com sucesso!")
-
-
-
