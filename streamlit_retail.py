@@ -507,12 +507,20 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     datas_teste = df_itens_fatura['DataFatura'].iloc[y_test.index].reset_index(drop=True)
 
     # Melhoria da Visualização
-    # Melhoria da Visualização
     fig, ax = plt.subplots()
 
+    # Ordenar os dados para garantir que as datas estão na ordem correta
+    datas_teste = pd.to_datetime(df_itens_fatura['DataFatura'].iloc[y_test.index]).reset_index(drop=True)
+    sorted_index = np.argsort(datas_teste)
+
+    # Ordenar os valores de y_test e y_pred com base nas datas
+    datas_teste = datas_teste.iloc[sorted_index]
+    y_test_sorted = y_test.iloc[sorted_index]
+    y_pred_sorted = y_pred[sorted_index]
+
     # Criando o gráfico de linhas
-    ax.plot(datas_teste, y_test, label='Valor Real', color='blue', linestyle='-', marker='o')
-    ax.plot(datas_teste, y_pred, label='Previsão', color='red', linestyle='-', marker='x')
+    ax.plot(datas_teste, y_test_sorted, label='Valor Real', color='blue', linestyle='-', marker='o')
+    ax.plot(datas_teste, y_pred_sorted, label='Previsão', color='red', linestyle='-', marker='x')
     ax.set_xlabel('Data')
     ax.set_ylabel('Valor Total')
     ax.legend()
