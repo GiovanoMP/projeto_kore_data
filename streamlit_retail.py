@@ -34,7 +34,7 @@ produtos.rename(columns=lambda x: x.strip(), inplace=True)
 segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
 
 # Merge para adicionar a categoria dos produtos
-itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
+itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria', 'PrecoUnitario']], on='CodigoProduto', how='left')  # Adiciona 'PrecoUnitario'
 
 # Funções de Análise
 def calcular_receita_total(itens_fatura):
@@ -425,6 +425,7 @@ elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
     meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
     if st.button('Prever Vendas'):
-        modelo_treinado = prever_vendas(itens_fatura.copy(), meses_a_prever)  # Use uma cópia do DataFrame para evitar modificá-lo
+        df_previsao = itens_fatura.copy()  # Usa uma cópia para o modelo de previsão
+        modelo_treinado = prever_vendas(df_previsao, meses_a_prever)
         if modelo_treinado:
             st.write("Modelo treinado e previsões feitas com sucesso!")
