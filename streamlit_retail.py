@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 import matplotlib.pyplot as plt
@@ -34,7 +34,7 @@ produtos.rename(columns=lambda x: x.strip(), inplace=True)
 segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
 
 # Merge para adicionar a categoria dos produtos
-itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria', 'PrecoUnitario']], on='CodigoProduto', how='left')  # Adiciona 'PrecoUnitario'
+itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria', 'PrecoUnitario']], on='CodigoProduto', how='left')
 
 # Funções de Análise
 def calcular_receita_total(itens_fatura):
@@ -147,12 +147,20 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     df_itens_fatura['Ano'] = df_itens_fatura['DataFatura'].dt.year
     df_itens_fatura['DiaSemana'] = df_itens_fatura['DataFatura'].dt.dayofweek
 
-    # Normalização das variáveis numéricas
-    scaler = StandardScaler()
-    df_itens_fatura[['Quantidade', 'ValorTotal']] = scaler.fit_transform(df_itens_fatura[['Quantidade', 'ValorTotal']])
+    # Separar Features Numéricas e Categóricas
+    X_numeric = df_itens_fatura[['Quantidade', 'Mes', 'Ano', 'DiaSemana']]
+    X_categorical = df_itens_fatura[['Categoria']]
 
-    # Separação entre features e target
-    X = df_itens_fatura.drop(['NumeroFatura', 'CodigoProduto', 'DataFatura', 'IDCliente', 'Venda', 'Devolucao', 'ValorTotal'], axis=1)
+    # Normalizar Features Numéricas
+    scaler = StandardScaler()
+    X_numeric = scaler.fit_transform(X_numeric)
+
+    # Codificar Features Categóricas (One-Hot Encoding)
+    encoder = OneHotEncoder(handle_unknown='ignore')
+    X_categorical_encoded = encoder.fit_transform(X_categorical).toarray()
+
+    # Combinar Features
+    X = np.concatenate((X_numeric, X_categorical_encoded), axis=1)
     y = df_itens_fatura['ValorTotal']
 
     # Divisão em treino e teste
@@ -425,7 +433,7 @@ elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
     meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
     if st.button('Prever Vendas'):
-        df_previsao = itens_fatura.copy()  # Usa uma cópia para o modelo de previsão
+        df_previsao = itens_fatura.copy()
         modelo_treinado = prever_vendas(df_previsao, meses_a_prever)
         if modelo_treinado:
             st.write("Modelo treinado e previsões feitas com sucesso!")
