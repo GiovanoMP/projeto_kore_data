@@ -98,6 +98,8 @@ def calcular_numero_transacoes(itens_fatura):
     return itens_fatura['NumeroFatura'].nunique()
 
 def calcular_transacoes_com_devolucoes(itens_fatura):
+
+def calcular_transacoes_com_devolucoes(itens_fatura):
     return itens_fatura[itens_fatura['Devolucao'] == True]['NumeroFatura'].nunique()
 
 def calcular_ticket_medio(itens_fatura):
@@ -165,10 +167,10 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     st.write("Pré-processando dados...")
     itens_fatura_previsao = itens_fatura.copy()
     itens_fatura_previsao = preprocessar_dados(itens_fatura_previsao)
-    itens_fatura_previsao = itens_fatura_previsao.groupby(['Ano', 'Mes'])['ValorTotal'].sum().reset_index()
+    itens_fatura_previsao = itens_fatura_previsao.groupby(['Ano', 'Mes', 'Dia', 'DiaSemana'])['ValorTotal'].sum().reset_index()
 
     st.write("Separando dados em treino e teste...")
-    X = itens_fatura_previsao[['Ano', 'Mes']]
+    X = itens_fatura_previsao[['Ano', 'Mes', 'Dia', 'DiaSemana']]
     y = itens_fatura_previsao['ValorTotal']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -179,18 +181,17 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
 
     st.write("Treinando o modelo XGBoost...")
     if modelo is None:
-        modelo = XGBRegressor(random_state=42)
-        param_grid = {
-            'n_estimators': [100, 150],
-            'learning_rate': [0.01, 0.1],
-            'max_depth': [3, 5],
-            'subsample': [0.5, 0.7],
-            'colsample_bytree': [0.5, 0.7]
-        }
-        search = RandomizedSearchCV(modelo, param_grid, n_iter=5, cv=3, scoring='neg_mean_squared_error', random_state=42)
-        search.fit(X_train, y_train)
-        modelo = search.best_estimator_
+        modelo = XGBRegressor(
+            n_estimators=50,  # Reduzido para acelerar o treinamento
+            learning_rate=0.1,
+            max_depth=3,
+            subsample=0.7,
+            colsample_bytree=0.7,
+            random_state=42
+        )
+        modelo.fit(X_train, y_train, early_stopping_rounds=10, eval_set=[(X_test, y_test)], verbose=False)
 
+    st.write("Fazendo a previsão...")
     y_pred = modelo.predict(X_test)
 
     r2 = r2_score(y_test, y_pred)
@@ -201,18 +202,17 @@ def prever_vendas(itens_fatura, meses_a_prever, modelo=None):
     st.write(f'RMSE: {rmse:.2f}')
     st.write(f'MAE: {mae:.2f}')
 
-    fig, ax = plt.subplots()
-    meses = range(1, len(y_pred) + 1)
-    ax.plot(meses, y_pred, label='Previsão')
-    ax.set_xlabel('Meses')
-    ax.set_ylabel('Valor Total em Vendas')
-    ax.legend()
-    ax.set_title('Previsão de Vendas para os Próximos Meses')
-    st.pyplot(fig)
+    st.write("Visualizando as previsões de vendas...")
+    previsoes_futuras = modelo.predict(X_test[:meses_a_prever])
+    datas_futuras = pd.date_range(start=itens_fatura['DataFatura'].max(), periods=meses_a_prever, freq='M')
 
-    # Mostrar produtos mais e menos vendidos
-    st.write("Produtos mais e menos vendidos previstos para os próximos meses:")
-    st.write("Esta funcionalidade será implementada em versões futuras.")
+    fig, ax = plt.subplots()
+    ax.plot(datas_futuras, previsoes_futuras, label='Previsão de Vendas')
+    ax.set_xlabel('Mês')
+    ax.set_ylabel('Valor Total')
+    ax.set_title('Previsão de Vendas para os Próximos Meses')
+    ax.legend()
+    st.pyplot(fig)
 
     return modelo
 
@@ -534,3 +534,5 @@ st.sidebar.write("5. **Análises e Insights**: Veja uma análise detalhada das t
 st.sidebar.write("6. **Previsão de Vendas**: Visualize previsões de vendas com base em Machine Learning. Ajuste o número de meses para a previsão e clique em 'Prever Vendas'.")
 
 
+
+                                    
