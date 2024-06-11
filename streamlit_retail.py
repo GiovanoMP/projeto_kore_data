@@ -3,8 +3,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 import numpy as np
+from datetime import timedelta
 
 # Configuração da Página
 st.set_page_config(layout="wide")
@@ -163,35 +163,32 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
 
     # Previsões
     y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
 
-    st.write(f'Mean Squared Error: {mse}')
-    st.write(f'Mean Absolute Error: {mae}')
-    st.write(f'R² Score: {r2}')
+    # Última data do dataframe
+    ultima_data = df_itens_fatura['DataFatura'].max()
+    st.write(f"Previsões de vendas a partir da última data do dataframe: {ultima_data.date()}")
 
     # Criando uma tabela com as previsões
     previsoes_df = pd.DataFrame({
         'Data': df_itens_fatura['DataFatura'].iloc[y_test.index],
-        'Previsão': y_pred
-    }).sort_values(by='Data')
+        'Valor Real': y_test,
+        'Valor Previsto': y_pred
+    })
 
-    st.write("## Previsões de Vendas")
+    st.write("Previsões de Vendas:")
     st.dataframe(previsoes_df)
 
     return model
 
 # Interface do Streamlit
 st.sidebar.header('Menu')
-opcoes = ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas com Machine Learning']
-opcao = st.sidebar.radio('Selecione uma opção:', opcoes, key='menu_radio')
+opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas com Machine Learning'])
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
     st.sidebar.header('Filtro de Data')
-    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), key='start_date')
-    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), key='end_date')
+    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), format="DD/MM/YYYY")
+    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), format="DD/MM/YYYY")
 
     if start_date > end_date:
         st.sidebar.error('Erro: A data final deve ser posterior à data inicial.')
@@ -199,17 +196,16 @@ if opcao == 'Relatório de Vendas':
     st.sidebar.header('Filtro de Categoria de Preço')
     categoria_preco = st.sidebar.radio(
         'Escolha uma Categoria de Preço:',
-        ['Nenhum', 'Barato (abaixo de 5,00)', 'Moderado (5,00 a 20,00)', 'Caro (acima de 20,00)'],
-        key='categoria_preco'
+        ['Nenhum', 'Barato (abaixo de 5,00)', 'Moderado (5,00 a 20,00)', 'Caro (acima de 20,00)']
     )
 
     st.sidebar.header('Filtro de País')
     paises = ['Global'] + list(clientes['Pais'].unique())
-    pais_selecionado = st.sidebar.selectbox('Escolha um País:', paises, key='pais_selecionado')
+    pais_selecionado = st.sidebar.selectbox('Escolha um País:', paises)
 
     st.sidebar.header('Filtro de Categoria de Produtos')
     categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
-    categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos, key='categoria_produto_selecionada')
+    categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
     # Aplicando os filtros
     itens_fatura_filtrado = itens_fatura.copy()
@@ -271,7 +267,7 @@ elif opcao == 'Análise de Churn':
     ultima_data = pd.to_datetime(itens_fatura['DataFatura'].max())
 
     st.sidebar.header('Filtro de Churn')
-    intervalo = st.sidebar.selectbox('Selecione um intervalo de dias:', ['30-60 dias', '61-90 dias', '91-120 dias', '121-360 dias'], key='intervalo_churn')
+    intervalo = st.sidebar.selectbox('Selecione um intervalo de dias:', ['30-60 dias', '61-90 dias', '91-120 dias', '121-360 dias'])
     if intervalo == '30-60 dias':
         dias_inicio, dias_fim = 30, 60
     elif intervalo == '61-90 dias':
@@ -297,9 +293,9 @@ elif opcao == 'Análise de Churn':
 elif opcao == 'Segmentação de Clientes':
     st.header('Segmentação de Clientes')
     segmentos_ajustados = ['Nenhum'] + [f'Segmento {i}' for i in range(1, 6)]
-    segmento_selecionado = st.sidebar.selectbox('Selecione um Segmento:', segmentos_ajustados, key='segmento_selecionado')
+    segmento_selecionado = st.sidebar.selectbox('Selecione um Segmento:', segmentos_ajustados)
     if segmento_selecionado != 'Nenhum':
-        if st.button('Mostrar Clientes', key='mostrar_clientes_button'):
+        if st.button('Mostrar Clientes'):
             segmento_numero = int(segmento_selecionado.split()[-1])
             clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_numero]
             clientes_ids = clientes_segmento['IDCliente'].unique()
@@ -423,8 +419,8 @@ elif opcao == 'Análises e Insights':
 # Seção de Previsão de Vendas
 elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
-    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1, key='meses_previsao')
-    if st.button('Prever Vendas', key='prever_vendas_button'):
+    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
+    if st.button('Prever Vendas'):
         df_previsao = itens_fatura.copy()
         modelo_treinado = prever_vendas(df_previsao, meses_a_prever)
         if modelo_treinado:
