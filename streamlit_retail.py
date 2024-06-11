@@ -161,18 +161,34 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     model = LinearRegression()
     model.fit(X_train, y_train)
 
-    # Previsões
-    y_pred = model.predict(X_test)
-
-    # Última data do dataframe
+    # Previsões a partir da última data do dataframe
     ultima_data = df_itens_fatura['DataFatura'].max()
-    st.write(f"Previsões de vendas a partir da última data do dataframe: {ultima_data.date()}")
+    datas_futuras = [ultima_data + timedelta(days=30 * i) for i in range(1, meses_a_prever + 1)]
 
-    # Criando uma tabela com as previsões
+    # Gerar features para as datas futuras
+    futuras_features = pd.DataFrame({
+        'Quantidade': [0] * len(datas_futuras),
+        'Mes': [data.month for data in datas_futuras],
+        'Ano': [data.year for data in datas_futuras],
+        'DiaSemana': [data.weekday() for data in datas_futuras],
+        'Categoria': [''] * len(datas_futuras)  # Categoria vazia, ajustar conforme necessário
+    })
+
+    # Normalizar e codificar as features futuras
+    futuras_features_numeric = scaler.transform(futuras_features[['Quantidade', 'Mes', 'Ano', 'DiaSemana']])
+    futuras_features_categorical_encoded = encoder.transform(futuras_features[['Categoria']]).toarray()
+
+    # Combinar todas as features futuras
+    X_futuras = np.concatenate((futuras_features_numeric, futuras_features_categorical_encoded), axis=1)
+
+    # Prever valores futuros
+    y_futuras = model.predict(X_futuras)
+
+    # Formatar as datas e valores para exibição
+    datas_futuras_formatadas = [data.strftime('%d/%m/%Y') for data in datas_futuras]
     previsoes_df = pd.DataFrame({
-        'Data': df_itens_fatura['DataFatura'].iloc[y_test.index],
-        'Valor Real': y_test,
-        'Valor Previsto': y_pred
+        'Data': datas_futuras_formatadas,
+        'Valor Previsto': y_futuras
     })
 
     st.write("Previsões de Vendas:")
@@ -187,8 +203,8 @@ opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'An�
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
     st.sidebar.header('Filtro de Data')
-    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), format="DD/MM/YYYY")
-    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), format="DD/MM/YYYY")
+    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date())
+    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date())
 
     if start_date > end_date:
         st.sidebar.error('Erro: A data final deve ser posterior à data inicial.')
