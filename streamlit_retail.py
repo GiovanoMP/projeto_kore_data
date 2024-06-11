@@ -4,9 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-import matplotlib.pyplot as plt
 import numpy as np
-from datetime import timedelta
 
 # Configuração da Página
 st.set_page_config(layout="wide")
@@ -127,14 +125,7 @@ def analisar_produtos(clientes, descricao):
     for cliente in clientes:
         st.write(f"Cliente {cliente}")
 
-# Funções de Previsão de Vendas
-def preprocessar_dados(df):
-    df['DataFatura'] = pd.to_datetime(df['DataFatura'])
-    df['Ano'] = df['DataFatura'].dt.year
-    df['Mes'] = df['DataFatura'].dt.month
-    df['DiaSemana'] = df['DataFatura'].dt.dayofweek
-    return df
-
+# Função de Previsão de Vendas
 def prever_vendas(df_itens_fatura, meses_a_prever):
     st.write("Pré-processando dados...")
     df_itens_fatura['DataFatura'] = pd.to_datetime(df_itens_fatura['DataFatura'], errors='coerce')
@@ -180,45 +171,27 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     st.write(f'Mean Absolute Error: {mae}')
     st.write(f'R² Score: {r2}')
 
-    st.write("Visualizando as previsões de vendas futuras...")
+    # Criando uma tabela com as previsões
+    previsoes_df = pd.DataFrame({
+        'Data': df_itens_fatura['DataFatura'].iloc[y_test.index],
+        'Previsão': y_pred
+    }).sort_values(by='Data')
 
-    # Extraindo as datas dos dados de teste
-    datas_teste = df_itens_fatura['DataFatura'].iloc[y_test.index].reset_index(drop=True)
-
-    # Melhoria da Visualização
-    fig, ax = plt.subplots()
-
-    # Criando o gráfico de linhas
-    ax.plot(datas_teste, y_test, label='Valor Real', color='blue', linestyle='-', marker='o')
-    ax.plot(datas_teste, y_pred, label='Previsão', color='red', linestyle='-', marker='x')
-    ax.set_xlabel('Data')
-    ax.set_ylabel('Valor Total')
-    ax.legend()
-    ax.set_title('Previsões de Vendas vs. Valores Reais')
-    fig.autofmt_xdate()
-    st.pyplot(fig)
-
-    # Informações Adicionais sobre o Modelo
-    st.write("## Informações sobre o Modelo:")
-    st.write("O modelo de regressão linear foi treinado usando as seguintes features:")
-    st.write("- Quantidade")
-    st.write("- Mês")
-    st.write("- Ano")
-    st.write("- Dia da Semana")
-    st.write("- Categoria do Produto (codificada com one-hot encoding)")
-    st.write("O modelo foi treinado com 80% dos dados e testado com 20% dos dados.")
+    st.write("## Previsões de Vendas")
+    st.dataframe(previsoes_df)
 
     return model
 
 # Interface do Streamlit
 st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas com Machine Learning'])
+opcoes = ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas com Machine Learning']
+opcao = st.sidebar.radio('Selecione uma opção:', opcoes, key='menu_radio')
 
 # Seção de Relatório de Vendas
 if opcao == 'Relatório de Vendas':
     st.sidebar.header('Filtro de Data')
-    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), format="DD/MM/YYYY")
-    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), format="DD/MM/YYYY")
+    start_date = st.sidebar.date_input('Data Inicial', pd.to_datetime(itens_fatura['DataFatura'].min()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), key='start_date')
+    end_date = st.sidebar.date_input('Data Final', pd.to_datetime(itens_fatura['DataFatura'].max()).date(), min_value=pd.to_datetime(itens_fatura['DataFatura'].min()).date(), max_value=pd.to_datetime(itens_fatura['DataFatura'].max()).date(), key='end_date')
 
     if start_date > end_date:
         st.sidebar.error('Erro: A data final deve ser posterior à data inicial.')
@@ -226,16 +199,17 @@ if opcao == 'Relatório de Vendas':
     st.sidebar.header('Filtro de Categoria de Preço')
     categoria_preco = st.sidebar.radio(
         'Escolha uma Categoria de Preço:',
-        ['Nenhum', 'Barato (abaixo de 5,00)', 'Moderado (5,00 a 20,00)', 'Caro (acima de 20,00)']
+        ['Nenhum', 'Barato (abaixo de 5,00)', 'Moderado (5,00 a 20,00)', 'Caro (acima de 20,00)'],
+        key='categoria_preco'
     )
 
     st.sidebar.header('Filtro de País')
     paises = ['Global'] + list(clientes['Pais'].unique())
-    pais_selecionado = st.sidebar.selectbox('Escolha um País:', paises)
+    pais_selecionado = st.sidebar.selectbox('Escolha um País:', paises, key='pais_selecionado')
 
     st.sidebar.header('Filtro de Categoria de Produtos')
     categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
-    categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
+    categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos, key='categoria_produto_selecionada')
 
     # Aplicando os filtros
     itens_fatura_filtrado = itens_fatura.copy()
@@ -297,7 +271,7 @@ elif opcao == 'Análise de Churn':
     ultima_data = pd.to_datetime(itens_fatura['DataFatura'].max())
 
     st.sidebar.header('Filtro de Churn')
-    intervalo = st.sidebar.selectbox('Selecione um intervalo de dias:', ['30-60 dias', '61-90 dias', '91-120 dias', '121-360 dias'])
+    intervalo = st.sidebar.selectbox('Selecione um intervalo de dias:', ['30-60 dias', '61-90 dias', '91-120 dias', '121-360 dias'], key='intervalo_churn')
     if intervalo == '30-60 dias':
         dias_inicio, dias_fim = 30, 60
     elif intervalo == '61-90 dias':
@@ -323,9 +297,9 @@ elif opcao == 'Análise de Churn':
 elif opcao == 'Segmentação de Clientes':
     st.header('Segmentação de Clientes')
     segmentos_ajustados = ['Nenhum'] + [f'Segmento {i}' for i in range(1, 6)]
-    segmento_selecionado = st.sidebar.selectbox('Selecione um Segmento:', segmentos_ajustados)
+    segmento_selecionado = st.sidebar.selectbox('Selecione um Segmento:', segmentos_ajustados, key='segmento_selecionado')
     if segmento_selecionado != 'Nenhum':
-        if st.button('Mostrar Clientes'):
+        if st.button('Mostrar Clientes', key='mostrar_clientes_button'):
             segmento_numero = int(segmento_selecionado.split()[-1])
             clientes_segmento = segmentacao[segmentacao['segmento'] == segmento_numero]
             clientes_ids = clientes_segmento['IDCliente'].unique()
@@ -397,8 +371,7 @@ elif opcao == 'Análises e Insights':
     """)
     st.subheader('Receita Mensal')
     st.write("""
-    A análise da receita mensal mostra um padrão sazonal claro, com picos de receita em determinados meses do ano, como novembro e dezembro, possivelmente devido às compras de final de ano. Observa-se que a receita em dezembro de 2011 foi a mais alta do período analisado, destacando a
-    a importância das promoções de fim de ano.
+    A análise da receita mensal mostra um padrão sazonal claro, com picos de receita em determinados meses do ano, como novembro e dezembro, possivelmente devido às compras de final de ano. Observa-se que a receita em dezembro de 2011 foi a mais alta do período analisado, destacando a importância das promoções de fim de ano.
     """)
     st.header('Análise de Produtos')
     st.subheader('Produtos Mais Vendidos')
@@ -450,81 +423,10 @@ elif opcao == 'Análises e Insights':
 # Seção de Previsão de Vendas
 elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
-    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
-    if st.button('Prever Vendas'):
+    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1, key='meses_previsao')
+    if st.button('Prever Vendas', key='prever_vendas_button'):
         df_previsao = itens_fatura.copy()
         modelo_treinado = prever_vendas(df_previsao, meses_a_prever)
         if modelo_treinado:
             st.write("Modelo treinado e previsões feitas com sucesso!")
-def prever_vendas(df_itens_fatura, meses_a_prever):
-    st.write("Pré-processando dados...")
-    df_itens_fatura['DataFatura'] = pd.to_datetime(df_itens_fatura['DataFatura'], errors='coerce')
-
-    # Tratamento de valores ausentes
-    df_itens_fatura.fillna(0, inplace=True)
-
-    # Criação de features baseadas nas datas
-    df_itens_fatura['Mes'] = df_itens_fatura['DataFatura'].dt.month
-    df_itens_fatura['Ano'] = df_itens_fatura['DataFatura'].dt.year
-    df_itens_fatura['DiaSemana'] = df_itens_fatura['DataFatura'].dt.dayofweek
-
-    # Separar Features Numéricas e Categóricas
-    X_numeric = df_itens_fatura[['Quantidade', 'Mes', 'Ano', 'DiaSemana']]
-    X_categorical = df_itens_fatura[['Categoria']]
-
-    # Normalizar Features Numéricas
-    scaler = StandardScaler()
-    X_numeric = scaler.fit_transform(X_numeric)
-
-    # Codificar Features Categóricas (One-Hot Encoding)
-    encoder = OneHotEncoder(handle_unknown='ignore')
-    X_categorical_encoded = encoder.fit_transform(X_categorical).toarray()
-
-    # Combinar Features
-    X = np.concatenate((X_numeric, X_categorical_encoded), axis=1)
-    y = df_itens_fatura['ValorTotal']
-
-    # Divisão em treino e teste
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Modelo de Regressão Linear
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-
-    # Previsões
-    y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    st.write(f'Mean Squared Error: {mse}')
-    st.write(f'Mean Absolute Error: {mae}')
-    st.write(f'R² Score: {r2}')
-
-    # Criando uma tabela com as previsões e valores reais
-    previsoes_df = pd.DataFrame({
-        'Data': df_itens_fatura['DataFatura'].iloc[y_test.index],
-        'Valor Real': y_test,
-        'Previsão': y_pred
-    }).sort_values(by='Data')
-
-    st.write("## Previsões de Vendas")
-    st.dataframe(previsoes_df)
-
-    return model
-
-# Interface do Streamlit
-st.sidebar.header('Menu')
-opcao = st.sidebar.radio('Selecione uma opção:', ['Relatório de Vendas', 'Análise de Churn', 'Segmentação de Clientes', 'Informações por Código do Cliente', 'Análises e Insights', 'Previsão de Vendas com Machine Learning'])
-
-# Seção de Previsão de Vendas
-if opcao == 'Previsão de Vendas com Machine Learning':
-    st.header('Previsão de Vendas com Machine Learning')
-    meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
-    if st.button('Prever Vendas'):
-        df_previsao = itens_fatura.copy()
-        modelo_treinado = prever_vendas(df_previsao, meses_a_prever)
-        if modelo_treinado:
-            st.write("Modelo treinado e previsões feitas com sucesso!")
-
 
