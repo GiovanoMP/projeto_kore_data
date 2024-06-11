@@ -517,7 +517,7 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     y_test_grouped = y_test_grouped.sort_index()
     y_pred_grouped = y_pred_grouped.sort_index()
 
-    # Criando o gráfico de linhas
+    # Criando o gráfico de linhas suavizadas
     ax.plot(y_test_grouped.index, y_test_grouped, label='Valor Real', color='blue', linestyle='-', marker='o')
     ax.plot(y_pred_grouped.index, y_pred_grouped, label='Previsão', color='red', linestyle='-', marker='x')
     ax.set_xlabel('Data')
@@ -538,4 +538,5 @@ def prever_vendas(df_itens_fatura, meses_a_prever):
     st.write("O modelo foi treinado com 80% dos dados e testado com 20% dos dados.")
 
     return model
+
 
