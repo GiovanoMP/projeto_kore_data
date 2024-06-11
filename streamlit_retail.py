@@ -33,8 +33,8 @@ itens_fatura.rename(columns=lambda x: x.strip(), inplace=True)
 produtos.rename(columns=lambda x: x.strip(), inplace=True)
 segmentacao.rename(columns=lambda x: x.strip(), inplace=True)
 
-if 'Categoria' not in itens_fatura.columns:
-    itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
+# Merge para adicionar a categoria dos produtos
+itens_fatura = itens_fatura.merge(produtos[['CodigoProduto', 'Categoria']], on='CodigoProduto', how='left')
 
 # Funções de Análise
 def calcular_receita_total(itens_fatura):
@@ -211,22 +211,20 @@ if opcao == 'Relatório de Vendas':
     categorias_produtos = ['Nenhum'] + list(produtos['Categoria'].unique())
     categoria_produto_selecionada = st.sidebar.selectbox('Escolha uma Categoria de Produto:', categorias_produtos)
 
+    # Aplicando os filtros
+    itens_fatura_filtrado = itens_fatura.copy()
+
     if categoria_preco != 'Nenhum':
-        itens_fatura_filtrado = itens_fatura.merge(produtos, on='CodigoProduto')
         if categoria_preco == 'Barato (abaixo de 5,00)':
             itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] < 5]
         elif categoria_preco == 'Moderado (5,00 a 20,00)':
             itens_fatura_filtrado = itens_fatura_filtrado[(itens_fatura_filtrado['PrecoUnitario'] >= 5) & (itens_fatura_filtrado['PrecoUnitario'] <= 20)]
         elif categoria_preco == 'Caro (acima de 20,00)':
             itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['PrecoUnitario'] > 20]
-    else:
-        itens_fatura_filtrado = itens_fatura.copy()
 
     if pais_selecionado != 'Global':
         itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
         itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Pais'] == pais_selecionado]
-    else:
-        itens_fatura_filtrado = itens_fatura_filtrado.merge(clientes, on='IDCliente')
 
     if categoria_produto_selecionada != 'Nenhum':
         itens_fatura_filtrado = itens_fatura_filtrado[itens_fatura_filtrado['Categoria'] == categoria_produto_selecionada]
@@ -427,6 +425,6 @@ elif opcao == 'Previsão de Vendas com Machine Learning':
     st.header('Previsão de Vendas com Machine Learning')
     meses_a_prever = st.sidebar.slider('Prever para quantos meses?', 1, 3, 1)
     if st.button('Prever Vendas'):
-        modelo_treinado = prever_vendas(itens_fatura, meses_a_prever)
+        modelo_treinado = prever_vendas(itens_fatura.copy(), meses_a_prever)  # Use uma cópia do DataFrame para evitar modificá-lo
         if modelo_treinado:
             st.write("Modelo treinado e previsões feitas com sucesso!")
